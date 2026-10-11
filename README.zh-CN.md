@@ -34,6 +34,8 @@ GitHub Actions 构建 ARM64 和 AMD64 镜像。当前硬件验证覆盖 [M401A �
 
 ## 快速开始
 
+如果盒子仍运行 Android，先参阅可选的 [Armbian U 盘安装参考](docs/testing/armbian-install.zh-CN.md)。
+
 在目标主机克隆仓库：
 
 ```sh

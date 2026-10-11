@@ -22,6 +22,7 @@ Run as the service account on a configured host. Hardware tests change playback;
 python3 tests/dlna_smoke.py --card <runtime-card> --dsd --report .local-build/dlna.json
 python3 tests/soloist_restart_smoke.py
 python3 tests/mpd_restart_smoke.py --card <runtime-card> --report .local-build/mpd-restart.json
+python3 tests/recovery_device_smoke.py --fault mpd --automatic-only --report .local-build/recovery.json
 python3 tests/spotify_switch_smoke.py --card <runtime-card> --report .local-build/switch.json
 sh tests/podman_tmpfs_smoke.sh
 ```
@@ -31,6 +32,8 @@ DLNA smoke checks SSDP and AVTransport URI/play/pause/seek/stop, 44.1/48/96kHz W
 Spotify tests require a paired account and verify output handoff and configured startup volume after restart. `host_api_smoke.py` targets the unconfigured-Spotify state and a DX5 II fixture; do not use it as a generic installed-device health check.
 
 MPD restart testing covers planned and abrupt exits, paused queue restoration and disabled-direct-output recovery. It requires subsequent DLNA output at 44.1/96kHz with advancing position. See [MPD memory and recovery](../debugging/mpd-memory.md) for recovery limits.
+
+Recovery fault injection accepts `mpd`, `player`, `route` or `session`. Wait for available automatic budget before using `--automatic-only`; otherwise the test fails rather than silently counting manual retry as automatic acceptance. It stops services and requires paused ready output. Physical hotplug/power-cycle and subsequent playback/listening remain separate checks.
 
 ## Long-duration test
 

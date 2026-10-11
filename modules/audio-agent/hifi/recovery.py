@@ -45,6 +45,7 @@ class Recovery:
         self.transport_faults = 0
         self.optional_blocked = False
         self.pending_fault = 'service_failed'
+        self.boot_checked = False
 
     def status(self):
         with self.lock:
@@ -88,6 +89,8 @@ class Recovery:
             changed = key != self.key
             self.hardware = {**hardware, 'observed_at': self.wall()}
             if changed:
+                if self.boot_checked:
+                    self.phase, self.reason = 'waiting', hardware.get('reason') or 'service_failed'
                 self.generation += 1
                 self.key, self.stable, self.last_observation = key, 0, -1
                 self.ready_key = None
@@ -96,6 +99,7 @@ class Recovery:
                 self.runtime.previous.clear()
                 self.had_loss = True
             if hardware['availability'] != 'ready':
+                self.boot_checked = True
                 self.phase, self.reason = 'waiting', hardware['reason']
                 self.runtime.core.owner, self.runtime.core.state = None, 'disconnected'
                 if changed and not self.busy:
@@ -104,7 +108,8 @@ class Recovery:
                 self.stable += 1
                 self.last_observation = now
             if hardware['availability'] == 'ready' and self.stable >= 3 and self.ready_key != key:
-                if self.phase == 'waiting' and self.reason == 'discovery_failed':
+                if not self.boot_checked:
+                    self.boot_checked = True
                     self.phase = 'checking'
                     self.busy = True
                     threading.Thread(target=self.bootstrap, daemon=True).start()

@@ -22,6 +22,7 @@ git diff --check
 python3 tests/dlna_smoke.py --card <runtime-card> --dsd --report .local-build/dlna.json
 python3 tests/soloist_restart_smoke.py
 python3 tests/mpd_restart_smoke.py --card <runtime-card> --report .local-build/mpd-restart.json
+python3 tests/recovery_device_smoke.py --fault mpd --automatic-only --report .local-build/recovery.json
 python3 tests/spotify_switch_smoke.py --card <runtime-card> --report .local-build/switch.json
 sh tests/podman_tmpfs_smoke.sh
 ```
@@ -31,6 +32,8 @@ DLNA smoke验证SSDP、AVTransport URI/play/pause/seek/stop、44.1/48/96kHz WAV/
 Spotify测试需要已配对账号，验证输出交接及重启后的启动音量。`host_api_smoke.py` 面向未配置Spotify和DX5 II测试配置，不能当作通用已部署设备健康检查。
 
 MPD重启测试覆盖主动及突然退出、暂停恢复队列和禁用直出状态恢复，要求随后DLNA能输出44.1/96kHz且播放进度前进。恢复边界见[MPD内存与恢复](../debugging/mpd-memory.zh-CN.md)。
+
+恢复故障注入支持 `mpd`、`player`、`route` 和 `session`。使用 `--automatic-only` 前等待自动预算可用，否则测试失败，不把手动重试计为自动验收。测试会停止服务并要求暂停就绪；真实拔插/断电和后续播放/听音另行验证。
 
 ## 长时间测试
 

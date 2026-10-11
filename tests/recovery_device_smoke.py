@@ -21,6 +21,7 @@ def main():
     parser.add_argument('--retry-only', action='store_true')
     parser.add_argument('--status', action='store_true')
     parser.add_argument('--fault', choices=['mpd', 'route', 'player', 'session'], default='mpd')
+    parser.add_argument('--automatic-only', action='store_true')
     args = parser.parse_args()
     cookie = ''
     csrf = ''
@@ -74,6 +75,8 @@ def main():
     time.sleep(18)
     output = api('status')['output']
     if output['recovery']['reason'] == 'recovery_exhausted':
+        if args.automatic_only:
+            raise AssertionError('automatic budget unavailable; wait for its window before testing')
         api('recovery/retry', {})
     recovered = wait_ready(started)
     checks = [{'fault':args.fault, 'passed':True, 'output':recovered}]

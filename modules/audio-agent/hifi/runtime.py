@@ -77,7 +77,8 @@ class Runtime:
             changed_runtime = old['dac'] != self.config.data['dac'] or old['sources'] != self.config.data['sources'] or 'spotify_key' in changes
             if changed_runtime:
                 self.recovery.invalidate()
-                self.core.disconnect()
+                with self.lock:
+                    self.core.disconnect()
                 only_spotify = old['dac'] == self.config.data['dac'] and old['sources']['dlna'] == self.config.data['sources']['dlna']
                 command = ['python3', str(self.repo / 'deploy/manage.py'), 'apply', '--maintenance-held'] + (['--only', 'soloist'] if only_spotify else [])
                 subprocess.run(command, check=True, timeout=90,
@@ -149,12 +150,16 @@ class Runtime:
             self.recovery.playback_health(self.snapshots)
 
     def hardware_loop(self):
+        failures = 0
         while not self.stop.is_set():
             try:
                 self.config.reload()
                 self.recovery.observe()
+                failures = 0
             except Exception:
-                LOG.warning('hardware observation failed')
+                failures += 1
+                if failures == 1 or failures % 60 == 0:
+                    LOG.warning('hardware observation failed')
             self.stop.wait(1)
 
     def loop(self):

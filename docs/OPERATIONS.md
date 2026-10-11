@@ -29,7 +29,15 @@ podman pull ghcr.io/hooyao/hifi-streamer/soloist@sha256:<verified-digest>
 
 Write the four immutable references to `~/.config/hifi-streamer/images.json`. Values must be full registry digest references or local `sha256:<image-id>`, not mutable tags. For local bootstrap, tag each image `localhost/hifi-<component>:dev`, then run `python3 deploy/manage.py record-images`.
 
-Before the web container is available, select the stable DAC ID:
+After recording images, bootstrap the web control plane even if the DAC is not connected:
+
+```sh
+python3 deploy/manage.py apply
+```
+
+Open `http://<device-address>:8080`, log in using the private generated admin password, and select the DAC when it is available. Unset selection reports `dac_unconfigured`; an absent selected DAC reports `dac_missing`. Audio services remain stopped until usable hardware is selected. The web service is enabled across reboots.
+
+For command-line DAC selection instead:
 
 ```sh
 PYTHONPATH=modules/audio-agent python3 - <<'PY'

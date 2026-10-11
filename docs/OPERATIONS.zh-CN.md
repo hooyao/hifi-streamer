@@ -29,7 +29,15 @@ podman pull ghcr.io/hooyao/hifi-streamer/soloist@sha256:<verified-digest>
 
 在 `~/.config/hifi-streamer/images.json` 写入四个不可变引用，值必须是完整registry digest或本地 `sha256:<image-id>`，不能是可变标签。本地部署先标记镜像为 `localhost/hifi-<component>:dev`，再运行 `python3 deploy/manage.py record-images`。
 
-网页容器可用前，选择稳定DAC ID：
+记录镜像后，即使 DAC 未连接，也可先启动网页控制平面：
+
+```sh
+python3 deploy/manage.py apply
+```
+
+打开 `http://<device-address>:8080`，使用私有配置中生成的管理密码登录，在 DAC 可用后选择设备。尚未选择时报告 `dac_unconfigured`；已选设备缺失时报告 `dac_missing`。选定可用硬件前，音频服务保持停止。网页服务已启用，重启后仍会启动。
+
+也可以通过命令行选择稳定 DAC ID：
 
 ```sh
 PYTHONPATH=modules/audio-agent python3 - <<'PY'

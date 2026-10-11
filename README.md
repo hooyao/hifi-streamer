@@ -34,6 +34,8 @@ ARM64 and AMD64 images are built by GitHub Actions. Hardware qualification curre
 
 ## Getting started
 
+If the box still runs Android, first follow the optional [Armbian USB installation reference](docs/testing/armbian-install.md).
+
 Clone the repository on the target host:
 
 ```sh

@@ -6,6 +6,6 @@
 
 ## 2. Acceptance
 
-- [ ] 2.1 Verify clean-host web login, authenticated unconfigured/missing status, stopped audio and persistent web availability after reboot.
+- [x] 2.1 Verify clean-host web login, authenticated unconfigured/missing status, stopped audio and persistent web availability after reboot.
 - [ ] 2.2 Verify selection of a connected DAC through the API reaches ready output and passes PCM/FLAC/DoP playback without manually restarting web.
 - [ ] 2.3 Pass Linux unit tests, strict OpenSpec checks and required PR CI.

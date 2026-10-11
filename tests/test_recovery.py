@@ -20,7 +20,7 @@ class Tests(unittest.TestCase):
                          'device': {'card': 1}, 'incarnation': ('usb', 1)}
         runtime = SimpleNamespace(config=SimpleNamespace(directory=Path(directory), data={'dac': 'dac'}),
                                   core=SimpleNamespace(owner='spotify', state='active', last_switch=0),
-                                  previous={'spotify': True}, adapters={}, hardware=Mock())
+                                  previous={'spotify': True}, adapters={}, hardware=Mock(), lock=threading.RLock())
         recovery = Recovery(runtime, clock=lambda: self.now, wall=lambda: self.now,
                             observer=lambda _: self.hardware)
         return runtime, recovery
@@ -137,13 +137,15 @@ class Tests(unittest.TestCase):
             runtime.repo = Path(directory)
             runtime.adapters = {'dlna': Mock(), 'spotify': Mock()}
             runtime.adapters['spotify'].configured.return_value = False
+            runtime.adapters['dlna'].snapshot.return_value = {'playback':'paused'}
+            runtime.adapters['spotify'].snapshot.return_value = {'playback':'unknown'}
             runtime.renew_adapters = Mock()
             recovery.had_loss = True
             with patch.object(recovery, 'command') as command, patch.object(recovery, 'route'):
                 recovery.repair(0)
             self.assertEqual(recovery.phase, 'ready')
             self.assertIsNone(runtime.core.owner)
-            self.assertEqual(runtime.previous, {})
+            self.assertEqual(runtime.previous, {'dlna':False, 'spotify':False})
             self.assertTrue(any('apply' in call.args for call in command.call_args_list))
             runtime.adapters['spotify'].command.assert_not_called()
             before = len(recovery.attempts)
@@ -184,3 +186,88 @@ class Tests(unittest.TestCase):
             finally:
                 release.set()
                 thread.join()
+
+    def test_backward_clock_keeps_budget_and_expired_history_ages_out(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime, recovery = self.fixture(directory)
+            recovery.attempts = [1100, 1200, 1300]
+            recovery.save()
+            restarted = Recovery(runtime, clock=lambda:self.now, wall=lambda:self.now)
+            self.assertEqual(restarted.attempts, [1000, 1000, 1000])
+            restarted.hardware = self.hardware
+            restarted.schedule()
+            self.assertEqual(restarted.reason, 'recovery_exhausted')
+            self.now += 601
+            with patch('hifi.recovery.threading.Thread') as worker:
+                restarted.schedule()
+                worker.assert_called_once()
+
+    def test_missing_route_escalates_but_disabled_source_does_not(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime, recovery = self.fixture(directory)
+            recovery.phase = 'ready'
+            runtime.adapters = {'spotify':Mock()}
+            runtime.adapters['spotify'].configured.return_value = False
+            runtime.core.owner = None
+            runtime.hardware.sink.side_effect = RuntimeError('route missing')
+            with patch('hifi.recovery.subprocess.run', return_value=SimpleNamespace(stdout='active')), \
+                    patch.object(recovery, 'schedule') as schedule:
+                for _ in range(3):
+                    recovery.playback_health({'spotify':{'health':'unconfigured'}})
+                    self.now += 5
+                schedule.assert_called_once_with('route_missing')
+
+    def test_configuration_invalidation_and_stale_playback_baseline(self):
+        from hifi.runtime import Runtime
+        from test_runtime import Adapter, Hardware
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Runtime(Path(__file__).resolve().parents[1],directory)
+            runtime.recovery.phase = 'ready'
+            runtime.adapters = {'dlna':Adapter('playing'), 'spotify':Adapter('stopped')}
+            runtime.core.adapters = runtime.adapters
+            runtime.hardware = Hardware()
+            runtime.core.hardware = runtime.hardware
+            runtime.connected, runtime.card = True, 1
+            runtime.previous = {'dlna':True}
+            with patch.object(runtime,'selected',return_value={'card':1}), \
+                    patch.object(runtime.recovery,'playback_health'):
+                runtime.tick()
+                self.assertIsNone(runtime.core.owner)
+                runtime.adapters['dlna'].state = 'paused'
+                runtime.tick()
+                runtime.adapters['dlna'].state = 'playing'
+                runtime.tick()
+                self.assertEqual(runtime.core.owner, 'dlna')
+            generation = runtime.recovery.generation
+            runtime.recovery.invalidate()
+            self.assertGreater(runtime.recovery.generation, generation)
+            self.assertEqual(runtime.recovery.reason, 'maintenance_busy')
+
+    def test_healthy_bootstrap_does_not_spend_restart_budget(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime, recovery = self.fixture(directory)
+            recovery.hardware = self.hardware
+            runtime.adapters = {'dlna': Mock()}
+            recovery.attempts = [998, 999, 1000]
+            recovery.bootstrap()
+            self.assertEqual(recovery.phase, 'ready')
+            self.assertEqual(recovery.attempts, [998, 999, 1000])
+            runtime.adapters['dlna'].snapshot.side_effect = RuntimeError()
+            recovery.bootstrap()
+            self.assertEqual(recovery.reason, 'service_failed')
+
+    def test_route_requires_real_stream_link(self):
+        from hifi.pipewire import Hardware
+        with tempfile.TemporaryDirectory() as directory:
+            runtime, recovery = self.fixture(directory)
+            runtime.hardware = Hardware(lambda: {'id':'dac', 'card':1})
+            sinks = [{'name':'dac', 'index':1, 'properties':{'alsa.card':'1'}},
+                     {'name':'hifi_standby', 'index':2, 'properties':{}}]
+            streams = [{'index':3, 'sink':4294967295,
+                        'properties':{'application.process.binary':'soloist'}}]
+            with patch.object(runtime.hardware, 'items', side_effect=lambda kind:sinks if kind=='sinks' else streams), \
+                    patch('hifi.pipewire.run'):
+                with self.assertRaises(RuntimeError):
+                    recovery.route()
+                streams[0]['sink'] = 2
+                recovery.route()

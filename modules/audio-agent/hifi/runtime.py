@@ -36,6 +36,7 @@ class Runtime:
         self.lock = threading.RLock()
         self.stop = threading.Event()
         self.recovery = Recovery(self)
+        self.core.valid_output = lambda: self.recovery.phase == 'ready'
 
     def renew_adapters(self):
         for adapter in self.adapters.values():
@@ -107,6 +108,8 @@ class Runtime:
                     snapshot = adapter.snapshot()
                 except Exception:
                     snapshot = {'running':False, 'authenticated':False, 'active':False, 'playback':'unknown', 'health':'unreachable'}
+                    if name == 'spotify' and self.recovery.optional_blocked:
+                        snapshot.update(health='expired', error='Soloist binary expired')
                 self.snapshots[name] = snapshot
                 self.snapshots[name]['observed_at'] = time.time()
             if self.recovery.phase != 'ready':
@@ -119,7 +122,7 @@ class Runtime:
                 snapshot = self.snapshots[name]
                 playing = snapshot['playback'] == 'playing' and snapshot.get('active', False)
                 edge = playing and not self.previous.get(name, False)
-                if not switched and playing and self.core.owner != name and (policy == name or policy == 'auto' and (edge or self.core.owner is None)) and selected:
+                if not switched and playing and edge and self.core.owner != name and (policy == name or policy == 'auto') and selected:
                     token = self.recovery.generation
                     self.sequence[name] += 1
                     try:

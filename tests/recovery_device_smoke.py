@@ -19,6 +19,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--retry-only', action='store_true')
+    parser.add_argument('--status', action='store_true')
+    parser.add_argument('--fault', choices=['mpd', 'route', 'player'], default='mpd')
     args = parser.parse_args()
     cookie = ''
     csrf = ''
@@ -44,9 +46,9 @@ def main():
         started = time.monotonic()
         while time.monotonic()-started < 150:
             output = api('status')['output']
-            if output['health'] == 'ready' and (after is None or
-                    subprocess.run(['systemctl','--user','is-active','hifi-mpd'],
-                                   capture_output=True).returncode == 0):
+            history_path = Path.home()/'.config/hifi-streamer/state/recovery.json'
+            attempts = json.loads(history_path.read_text())['attempts'] if history_path.exists() else []
+            if output['health'] == 'ready' and (after is None or any(t >= after for t in attempts)):
                 assert output['owner'] is None
                 return output
             time.sleep(1)
@@ -54,19 +56,24 @@ def main():
 
     password = json.loads((Path.home()/'.config/hifi-streamer/admin.json').read_text())['password']
     api('login', {'password':password})
+    if args.status:
+        print(json.dumps(api('status')['output']))
+        return
     if args.retry_only:
         api('recovery/retry', {})
         time.sleep(3)
         print(json.dumps(wait_ready()))
         return
     initial = wait_ready()
-    subprocess.run(['systemctl','--user','stop','hifi-mpd'],check=True)
+    started = time.time()
+    service = {'mpd':'hifi-mpd', 'route':'wireplumber', 'player':'hifi-soloist'}[args.fault]
+    subprocess.run(['systemctl','--user','stop',service],check=True)
     time.sleep(18)
     output = api('status')['output']
     if output['recovery']['reason'] == 'recovery_exhausted':
         api('recovery/retry', {})
-    recovered = wait_ready(initial['recovery']['attempts'])
-    checks = [{'fault':'MPD stopped', 'passed':True, 'output':recovered}]
+    recovered = wait_ready(started)
+    checks = [{'fault':args.fault, 'passed':True, 'output':recovered}]
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps({'checks':checks},indent=2))
     print(json.dumps({'passed':len(checks)}))

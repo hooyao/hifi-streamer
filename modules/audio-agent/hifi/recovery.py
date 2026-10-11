@@ -41,6 +41,7 @@ class Recovery:
         self.had_loss = False
         self.full_used = False
         self.transport_faults = 0
+        self.optional_blocked = False
 
     def status(self):
         with self.lock:
@@ -48,7 +49,8 @@ class Recovery:
             return {'hardware': hardware, 'health': 'ready' if self.phase == 'ready' else 'degraded',
                     'recovery': {'phase': self.phase, 'reason': self.reason,
                                  'attempts': len(self.attempts), 'retry_available':
-                                 self.hardware['availability'] == 'ready' and not self.busy,
+                                 self.hardware['availability'] == 'ready' and not self.busy
+                                 and self.wall() - self.last_manual >= 60,
                                  'next_retry_seconds': max(0, round(self.next_retry - self.clock()))}}
 
     def invalidate(self):
@@ -97,7 +99,28 @@ class Recovery:
                 self.stable += 1
                 self.last_observation = now
             if hardware['availability'] == 'ready' and self.stable >= 3 and self.ready_key != key:
+                if self.phase == 'waiting' and self.reason == 'discovery_failed':
+                    self.phase = 'checking'
+                    self.busy = True
+                    threading.Thread(target=self.bootstrap, daemon=True).start()
+                    return
                 self.schedule()
+
+    def bootstrap(self):
+        """A healthy agent restart does not consume the repair budget."""
+        token = self.generation
+        try:
+            self.runtime.adapters['dlna'].snapshot()
+            self.runtime.hardware.sink()
+            if token != self.generation or self.hardware['availability'] != 'ready':
+                return
+            self.ready_key, self.phase, self.reason = self.key, 'ready', None
+            self.runtime.core.state = 'idle'
+            self.had_loss = False
+        except Exception:
+            self.phase, self.reason = 'waiting', 'service_failed'
+        finally:
+            self.busy = False
 
     def schedule(self, reason=None):
         """Coalesce repeated faults; a worker never holds the status lock."""
@@ -146,19 +169,31 @@ class Recovery:
                                    capture_output=True, timeout=15)
 
     def quiesce(self):
+        token = self.generation
         try:
-            with maintenance_lock(self.runtime.config.directory, blocking=False):
-                self.pause()
+            with maintenance_lock(self.runtime.config.directory, blocking=False), self.runtime.lock:
+                if token == self.generation and self.hardware['availability'] != 'ready':
+                    self.pause()
         except (BlockingIOError, OSError, subprocess.TimeoutExpired):
             pass
 
     def route(self):
-        target = self.runtime.hardware.sink()
+        try:
+            target = self.runtime.hardware.sink()
+        except Exception:
+            if not self.runtime.adapters['spotify'].configured():
+                return None
+            raise
         self.runtime.hardware.standby()
         self.runtime.hardware.move('hifi_standby')
         from .pipewire import run
         run('pactl', 'set-default-sink', 'hifi_standby')
         run('pactl', 'suspend-sink', target, '1')
+        standby = next(s for s in self.runtime.hardware.items('sinks') if s['name'] == 'hifi_standby')
+        streams = self.runtime.hardware.items('sink-inputs')
+        if any(s.get('properties', {}).get('application.process.binary') == 'soloist' and
+               s.get('sink') != standby['index'] for s in streams):
+            raise RuntimeError('optional stream is unlinked')
         return target
 
     def repair(self, token):
@@ -167,7 +202,7 @@ class Recovery:
         fault = self.reason
         self.full_used = False
         try:
-            with maintenance_lock(self.runtime.config.directory, blocking=False):
+            with maintenance_lock(self.runtime.config.directory, blocking=False), self.runtime.lock:
                 self.check(token, deadline)
                 self.attempts = (self.attempts + [self.wall()])[-3:]
                 self.manual = False
@@ -207,6 +242,7 @@ class Recovery:
                     except Exception:
                         self.full_session(token, deadline)
                 spotify = self.runtime.adapters['spotify']
+                self.optional_blocked = False
                 if spotify.configured():
                     active = self.services(token, deadline, 'show', 'hifi-soloist', '-p', 'ActiveState', '--value')
                     if active not in ('active', 'activating'):
@@ -216,7 +252,11 @@ class Recovery:
                             self.services(token, deadline, 'start', 'hifi-soloist')
                             self.runtime.renew_adapters()
                             spotify = self.runtime.adapters['spotify']
+                        else:
+                            self.optional_blocked = True
                     for _ in range(12):
+                        if self.optional_blocked:
+                            break
                         self.check(token, deadline)
                         try:
                             spotify.snapshot()
@@ -231,18 +271,33 @@ class Recovery:
                     self.full_session(token, deadline)
                 self.check(token, deadline)
                 self.pause(stop_unreachable=False)
-                if self.runtime.adapters['spotify'].configured():
+                if self.runtime.adapters['spotify'].configured() and not self.optional_blocked:
                     # A temporarily unavailable control endpoint must leave a paused,
                     # discoverable player after startup, not permanently disabled.
                     try:
                         self.services(token, deadline, 'start', 'hifi-soloist')
                     except subprocess.CalledProcessError:
                         LOG.warning('optional source did not start')
-                self.route()
+                try:
+                    self.route()
+                except Exception:
+                    if not self.full_used:
+                        self.full_session(token, deadline)
+                        self.route()
+                    else:
+                        raise
                 self.runtime.previous.clear()
+                for name, adapter in self.runtime.adapters.items():
+                    try:
+                        snapshot = adapter.snapshot()
+                        self.runtime.previous[name] = snapshot.get('playback') == 'playing'
+                    except Exception:
+                        self.runtime.previous[name] = True
                 self.runtime.core.owner, self.runtime.core.state = None, 'idle'
+                self.check(token, deadline)
                 self.ready_key, self.phase, self.reason = self.key, 'ready', None
                 self.had_loss = False
+                self.service_faults, self.transport_faults, self.stalls = 0, 0, 0
                 LOG.info('audio recovery completed')
         except BlockingIOError:
             self.phase, self.reason = 'waiting', 'maintenance_busy'
@@ -252,7 +307,8 @@ class Recovery:
         except Exception as error:
             if counted:
                 self.next_retry = self.clock() + (5, 20, 60)[min(len(self.attempts), 3)-1]
-            self.phase, self.reason = 'failed', 'service_failed'
+            if token == self.generation:
+                self.phase, self.reason = 'failed', 'service_failed'
             LOG.warning('audio recovery failed: %s', type(error).__name__)
         finally:
             self.busy = False
@@ -278,7 +334,7 @@ class Recovery:
                 time.sleep(.5)
         self.runtime.hardware.restore_volume(volume)
         self.route()
-        if self.runtime.adapters['spotify'].configured():
+        if self.runtime.adapters['spotify'].configured() and not self.optional_blocked:
             try:
                 self.services(token, deadline, 'start', 'hifi-soloist')
             except subprocess.CalledProcessError:
@@ -308,7 +364,7 @@ class Recovery:
                 route_missing = True
             spotify = snapshots.get('spotify', {})
             optional_unreachable = (spotify.get('health') == 'unreachable' and
-                                    self.runtime.adapters['spotify'].configured())
+                                    self.runtime.adapters['spotify'].configured() and not self.optional_blocked)
             self.transport_faults = self.transport_faults + 1 if route_missing or optional_unreachable else 0
             if self.transport_faults >= 3:
                 self.ready_key = None

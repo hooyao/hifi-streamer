@@ -33,7 +33,7 @@ Spotify tests require a paired account and verify output handoff and configured 
 
 MPD restart testing covers planned and abrupt exits, paused queue restoration and disabled-direct-output recovery. It requires subsequent DLNA output at 44.1/96kHz with advancing position. See [MPD memory and recovery](../debugging/mpd-memory.md) for recovery limits.
 
-Recovery fault injection accepts `mpd`, `player`, `route` or `session`. Wait for available automatic budget before using `--automatic-only`; otherwise the test fails rather than silently counting manual retry as automatic acceptance. It stops services and requires paused ready output. Physical hotplug/power-cycle and subsequent playback/listening remain separate checks.
+Recovery fault injection accepts `mpd`, `start-limit`, `player`, `route` or `session`. Wait for available automatic budget before using `--automatic-only`; otherwise the test fails rather than silently counting manual retry as automatic acceptance. It stops services and requires paused ready output. The start-limit test holds the maintenance lock while temporarily injecting failed startup and removes its override before permitting repair. Physical hotplug/power-cycle and subsequent playback/listening remain separate checks.
 
 ## Long-duration test
 

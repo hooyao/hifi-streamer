@@ -53,3 +53,32 @@ class Tests(unittest.TestCase):
             hardware.direct_profile()
         run.assert_called_once_with('pactl','set-card-profile','usb','pro-audio')
         restore.assert_called_once_with(saved)
+
+    def test_source_clock_applies_before_open_and_clears_on_release(self):
+        hardware = Hardware(lambda: {'id':'dac','card':2})
+        hardware.mpd = Mock()
+        events = []
+        with patch.object(hardware,'sink',return_value='dac'), \
+                patch.object(hardware,'ensure_released'), patch.object(hardware,'standby'), \
+                patch.object(hardware,'move'), \
+                patch.object(hardware,'hardware_rate',side_effect=lambda *args:events.append(('rate',*args))), \
+                patch('hifi.pipewire.run',side_effect=lambda *args:events.append(args)):
+            hardware.for_pipewire(rate=44100)
+            self.assertTrue(hardware.owned_clock)
+            self.assertLess(events.index(('rate','dac',44100)),
+                            events.index(('pactl','suspend-sink','dac','0')))
+            hardware.for_direct()
+            self.assertIn(('rate','dac',None),events)
+            self.assertFalse(hardware.owned_clock)
+
+    def test_clock_parameters_address_only_selected_node(self):
+        import json
+        hardware = Hardware(lambda: {'id':'dac','card':2})
+        sinks = [{'name':'dac','properties':{'object.id':'44'}},
+                 {'name':'other','properties':{'object.id':'99'}}]
+        with patch.object(hardware,'items',return_value=sinks), patch('hifi.pipewire.run') as run:
+            hardware.hardware_rate('dac',44100)
+        args = run.call_args.args
+        self.assertEqual(args[:4],('pw-cli','set-param','44','Props'))
+        self.assertEqual(json.loads(args[4])['params'],
+                         ['audio.rate',44100,'api.alsa.multi-rate',False])

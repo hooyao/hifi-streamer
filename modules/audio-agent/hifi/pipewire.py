@@ -15,6 +15,7 @@ class Hardware:
     def __init__(self, selected):
         self.selected = selected
         self.mpd = None
+        self.owned_clock = False
 
     def items(self, kind):
         return json.loads(run('pactl', '--format=json', 'list', kind))
@@ -85,13 +86,27 @@ class Hardware:
             target = None
         if target:
             run('pactl', 'suspend-sink', target, '1')
+            if self.owned_clock:
+                self.hardware_rate(target, None)
+        self.owned_clock = False
         self.ensure_released()
 
-    def for_pipewire(self):
+    def hardware_rate(self, target, rate):
+        sink = next(s for s in self.items('sinks') if s['name'] == target)
+        node = int(sink['properties']['object.id'])
+        if rate is not None and (type(rate) is not int or not 8000 <= rate <= 768000):
+            raise ValueError('invalid hardware rate')
+        params = json.dumps({'params':['audio.rate', rate or 0, 'api.alsa.multi-rate', rate is None]})
+        run('pw-cli', 'set-param', str(node), 'Props', params)
+
+    def for_pipewire(self, rate=None):
         if self.mpd:
             self.mpd.release()
         self.ensure_released()
         target = self.sink()
+        if rate is not None:
+            self.hardware_rate(target, rate)
+            self.owned_clock = True
         run('pactl', 'set-default-sink', target)
         self.move(target)
         run('pactl', 'suspend-sink', 'hifi_standby', '1')

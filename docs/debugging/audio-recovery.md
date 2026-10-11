@@ -31,6 +31,8 @@ Existing player streams are parked on standby during repair. The real DAC remain
 
 The selected DAC uses the PipeWire Pro Audio profile to address its ALSA `hw` PCM. An analog `front` path can invoke ALSA conversion: a 44.1kHz PipeWire format alone does not prove 44.1kHz USB transport. Repair preserves gain/mute when selecting the hardware profile, reconciles an old 48kHz standby node while sources are paused, and transfers streams before releasing DAC suspension. Verify actual USB feedback after cold boot and handoff.
 
+Soloist acquisition explicitly requests 44.1kHz on the selected hardware node and disables that node's multi-rate following while Spotify owns output. Release removes the node rate request and restores following before direct ALSA playback. This is source-owned hardware configuration, not a global PipeWire clock override; other sources must declare their own rate policy. Check sustained USB feedback across tracks as well as the initial sample.
+
 ## Verification
 
 Run Linux unit tests and the integration procedures in the [test guide](../testing/README.md). Deterministic tests cover missing/partial devices, generations, retry persistence and route failures. Hardware acceptance must additionally verify physical unplug/replug, power cycles and playback after recovery. A passed software test does not establish cable health or listening quality.

@@ -51,5 +51,5 @@ class Soloist:
         self.hardware.for_direct()
 
     def acquire(self, generation):
-        self.hardware.for_pipewire()
+        self.hardware.for_pipewire(rate=44100)
         self.command('play')

@@ -55,6 +55,7 @@ class Recovery:
                                  'route_failures': self.stalls,
                                  'attempts': sum(self.wall() - t < 600 for t in self.attempts), 'retry_available':
                                  self.hardware['availability'] == 'ready' and not self.busy
+                                 and self.phase == 'failed'
                                  and self.wall() - self.last_manual >= 60,
                                  'next_retry_seconds': max(0, round(self.next_retry - self.clock()))}}
 
@@ -66,8 +67,8 @@ class Recovery:
 
     def retry(self):
         with self.lock:
-            if self.hardware['availability'] != 'ready' or self.busy:
-                raise ValueError('DAC is unavailable or recovery is running')
+            if self.hardware['availability'] != 'ready' or self.busy or self.phase != 'failed':
+                raise ValueError('retry requires a failed recovery with an available DAC')
             if self.wall() - self.last_manual < 60:
                 raise ValueError('retry is limited to once per minute')
             self.last_manual = self.wall()
@@ -121,18 +122,36 @@ class Recovery:
     def bootstrap(self):
         """A healthy agent restart does not consume the repair budget."""
         token = self.generation
+        deadline = self.clock()+20
+        stage = 'observation'
         try:
-            self.runtime.adapters['dlna'].snapshot()
-            if self.runtime.adapters['spotify'].configured():
-                self.runtime.hardware.sink()
-                if not self.runtime.hardware.hardware_path_ready():
-                    raise RuntimeError('DAC hardware path needs configuration')
-            if token != self.generation or self.hardware['availability'] != 'ready':
-                return
-            self.ready_key, self.phase, self.reason = self.key, 'ready', None
-            self.runtime.core.state = 'idle'
-            self.had_loss = False
-        except Exception:
+            with maintenance_lock(self.runtime.config.directory, blocking=False), \
+                    self.control_lock(token, deadline):
+                snapshots = {name: adapter.snapshot() for name, adapter in self.runtime.adapters.items()}
+                if self.runtime.adapters['spotify'].configured():
+                    self.runtime.hardware.sink()
+                    if not self.runtime.hardware.hardware_path_ready():
+                        raise RuntimeError('DAC hardware path needs configuration')
+                playing = [name for name, state in snapshots.items() if state.get('playback') == 'playing']
+                stage = 'release'
+                for name in playing:
+                    self.check(token, deadline)
+                    self.runtime.adapters[name].release()
+                if playing:
+                    stage = 'route'
+                    self.check(token, deadline)
+                    self.route()
+                self.check(token, deadline)
+                self.runtime.previous = {name: False for name in self.runtime.adapters}
+                self.runtime.blocked_intents = set()
+                self.ready_key, self.phase, self.reason = self.key, 'ready', None
+                self.runtime.core.owner, self.runtime.core.state = None, 'idle'
+                self.had_loss = False
+        except BlockingIOError:
+            self.boot_checked = False
+            self.phase, self.reason = 'waiting', 'maintenance_busy'
+        except Exception as error:
+            LOG.warning('startup reconciliation %s failed: %s', stage, type(error).__name__)
             if token == self.generation:
                 self.phase, self.reason = 'waiting', 'service_failed'
         finally:
@@ -211,11 +230,8 @@ class Recovery:
         run('pactl', 'suspend-sink', target, '1')
         # Newly created player streams need a real default; existing streams stay parked.
         run('pactl', 'set-default-sink', target)
-        standby = next(s for s in self.runtime.hardware.items('sinks') if s['name'] == 'hifi_standby')
-        streams = self.runtime.hardware.items('sink-inputs')
-        if any(s.get('properties', {}).get('application.process.binary') == 'soloist' and
-               s.get('sink') != standby['index'] for s in streams):
-            raise RuntimeError('optional stream is unlinked')
+        # Paused streams can be unlinked; playback_health verifies the actual link
+        # after fresh playback intent and the startup grace period.
         return target
 
     def repair(self, token):

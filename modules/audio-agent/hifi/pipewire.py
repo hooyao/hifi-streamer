@@ -86,10 +86,23 @@ class Hardware:
             target = None
         if target:
             run('pactl', 'suspend-sink', target, '1')
-            if self.owned_clock:
+            # Node state outlives this process, so a restarted agent must clear it too.
+            if self.owned_clock or self.clock_requested(target):
                 self.hardware_rate(target, None)
         self.owned_clock = False
         self.ensure_released()
+
+    def clock_requested(self, target):
+        sink = next(s for s in self.items('sinks') if s['name'] == target)
+        node = int(sink['properties']['object.id'])
+        for item in json.loads(run('pw-dump', str(node))):
+            for prop in item.get('info', {}).get('params', {}).get('Props', []):
+                if 'device' not in prop:
+                    continue
+                params = prop.get('params', [])
+                values = dict(zip(params[::2], params[1::2]))
+                return values.get('audio.rate', 0) != 0 or values.get('api.alsa.multi-rate') is False
+        raise RuntimeError('DAC hardware clock state unavailable')
 
     def hardware_rate(self, target, rate):
         sink = next(s for s in self.items('sinks') if s['name'] == target)

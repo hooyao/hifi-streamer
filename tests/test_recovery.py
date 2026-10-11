@@ -61,6 +61,7 @@ class Tests(unittest.TestCase):
                 second.retry()
             third = Recovery(runtime, clock=lambda: self.now, wall=lambda: self.now)
             third.hardware = self.hardware
+            third.phase = 'failed'
             with self.assertRaises(ValueError):
                 third.retry()
             third.hardware = {'availability': 'missing'}
@@ -264,7 +265,7 @@ class Tests(unittest.TestCase):
             recovery.bootstrap()
             self.assertEqual(recovery.reason, 'service_failed')
 
-    def test_route_requires_real_stream_link(self):
+    def test_paused_route_does_not_require_a_running_stream_link(self):
         from hifi.pipewire import Hardware
         with tempfile.TemporaryDirectory() as directory:
             runtime, recovery = self.fixture(directory)
@@ -275,8 +276,7 @@ class Tests(unittest.TestCase):
                         'properties':{'application.process.binary':'soloist'}}]
             with patch.object(runtime.hardware, 'items', side_effect=lambda kind:sinks if kind=='sinks' else streams), \
                     patch('hifi.pipewire.run') as run:
-                with self.assertRaises(RuntimeError):
-                    recovery.route()
+                recovery.route()
                 streams[0]['sink'] = 2
                 recovery.route()
                 defaults = [call.args for call in run.call_args_list if
@@ -315,6 +315,51 @@ class Tests(unittest.TestCase):
                 worker.join()
             with maintenance_lock(directory, blocking=False):
                 pass
+
+    def test_healthy_output_cannot_request_disruptive_retry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, recovery = self.fixture(directory)
+            recovery.hardware = self.hardware
+            recovery.phase = 'ready'
+            self.assertFalse(recovery.status()['recovery']['retry_available'])
+            with self.assertRaisesRegex(ValueError, 'failed recovery'):
+                recovery.retry()
+            self.assertFalse(recovery.manual)
+            self.assertEqual(recovery.attempts, [])
+            recovery.phase = 'failed'
+            self.assertTrue(recovery.status()['recovery']['retry_available'])
+            recovery.retry()
+
+    def test_smoke_history_handles_fresh_healthy_installation(self):
+        from recovery_device_smoke import attempt_history
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/'recovery.json'
+            self.assertEqual(attempt_history(path), [])
+            path.write_text('{"attempts":[123,456]}')
+            self.assertEqual(attempt_history(path), [123,456])
+
+    def test_healthy_restart_parks_existing_playback_and_accepts_fresh_intent(self):
+        from hifi.runtime import Runtime
+        from test_runtime import Adapter, Hardware
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Runtime(Path(__file__).resolve().parents[1],directory)
+            runtime.adapters = {'dlna':Adapter('playing'),'spotify':Adapter('stopped')}
+            runtime.core.adapters = runtime.adapters
+            runtime.hardware = Hardware()
+            runtime.core.hardware = runtime.hardware
+            runtime.connected, runtime.card = True, 1
+            recovery = runtime.recovery
+            recovery.hardware = {'availability':'ready', 'device':{'card':1}}
+            runtime.blocked_intents = {'dlna','spotify'}
+            with patch.object(recovery,'route'), patch.object(recovery,'playback_health'), \
+                    patch.object(runtime,'selected',return_value={'card':1}):
+                recovery.bootstrap()
+                self.assertEqual(runtime.adapters['dlna'].state,'paused')
+                self.assertIsNone(runtime.core.owner)
+                self.assertEqual(recovery.attempts,[])
+                runtime.adapters['dlna'].state = 'playing'
+                runtime.tick()
+                self.assertEqual(runtime.core.owner,'dlna')
 
     def test_repair_deadline_and_stale_generation_cancel_commands(self):
         with tempfile.TemporaryDirectory() as directory:

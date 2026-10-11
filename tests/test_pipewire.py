@@ -71,6 +71,50 @@ class Tests(unittest.TestCase):
             self.assertIn(('rate','dac',None),events)
             self.assertFalse(hardware.owned_clock)
 
+    def test_restarted_agent_clears_persistent_node_rate(self):
+        hardware = Hardware(lambda: {'id':'dac','card':2})
+        self.assertFalse(hardware.owned_clock)
+        with patch.object(hardware,'sink',return_value='dac'), \
+                patch.object(hardware,'standby'), patch.object(hardware,'move'), \
+                patch.object(hardware,'clock_requested',return_value=True), \
+                patch.object(hardware,'ensure_released'), patch('hifi.pipewire.run'), \
+                patch.object(hardware,'hardware_rate') as rate:
+            hardware.for_direct()
+        rate.assert_called_once_with('dac', None)
+
+    def test_already_dynamic_node_does_not_get_reconfigured(self):
+        hardware = Hardware(lambda: {'id':'dac','card':2})
+        with patch.object(hardware,'sink',return_value='dac'), \
+                patch.object(hardware,'standby'), patch.object(hardware,'move'), \
+                patch.object(hardware,'ensure_released'), patch('hifi.pipewire.run'), \
+                patch.object(hardware,'clock_requested',return_value=False), \
+                patch.object(hardware,'hardware_rate') as rate:
+            hardware.for_direct()
+        rate.assert_not_called()
+
+    def test_persisted_clock_is_read_from_backend_props(self):
+        import json
+        hardware = Hardware(lambda: {'id':'dac','card':2})
+        sinks = [{'name':'dac','properties':{'object.id':'44'}}]
+        props = [{'volume':1.0}, {'device':'hw:2,0',
+                  'params':['audio.rate',44100,'api.alsa.multi-rate',False]}]
+        with patch.object(hardware,'items',return_value=sinks), \
+                patch('hifi.pipewire.run',side_effect=lambda *args:json.dumps([{'info':{'params':{'Props':props}}}])):
+            self.assertTrue(hardware.clock_requested('dac'))
+            props[1]['params'] = ['audio.rate',0,'api.alsa.multi-rate',True]
+            self.assertFalse(hardware.clock_requested('dac'))
+
+    def test_playing_health_rejects_unlinked_stream_despite_running_pcm(self):
+        hardware = Hardware(lambda:{'id':'dac','card':2,'pcm':0})
+        sinks = [{'name':'dac','index':44,'properties':{'alsa.card':'2'}}]
+        streams = [{'sink':4294967295,'properties':{'application.process.binary':'soloist'}}]
+        with patch.object(hardware,'items',side_effect=lambda kind:sinks if kind=='sinks' else streams), \
+                patch('hifi.pipewire.Path.exists',return_value=True), \
+                patch('hifi.pipewire.Path.read_text',return_value='state: RUNNING'):
+            self.assertFalse(hardware.output_running('spotify'))
+            streams[0]['sink']=44
+            self.assertTrue(hardware.output_running('spotify'))
+
     def test_clock_parameters_address_only_selected_node(self):
         import json
         hardware = Hardware(lambda: {'id':'dac','card':2})

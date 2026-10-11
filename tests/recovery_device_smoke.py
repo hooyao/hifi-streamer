@@ -19,6 +19,12 @@ class UnixConnection(http.client.HTTPConnection):
         self.sock.connect(f'/run/user/{__import__("os").getuid()}/hifi-streamer/agent.sock')
 
 
+def attempt_history(path):
+    """A healthy fresh installation has not persisted any recovery attempts."""
+    path = Path(path)
+    return json.loads(path.read_text()).get('attempts', []) if path.exists() else []
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--report', type=Path, required=True)
@@ -54,7 +60,7 @@ def main():
         while time.monotonic()-started < 150:
             output = api('status')['output']
             history_path = Path.home()/'.config/hifi-streamer/state/recovery.json'
-            attempts = json.loads(history_path.read_text())['attempts'] if history_path.exists() else []
+            attempts = attempt_history(history_path)
             if output['health'] == 'ready' and (after is None or any(t >= after for t in attempts)):
                 if after is not None:
                     assert output['owner'] is None
@@ -100,8 +106,8 @@ def main():
         return
     initial = wait_ready()
     if args.automatic_only:
-        history = json.loads((Path.home()/'.config/hifi-streamer/state/recovery.json').read_text())
-        if sum(time.time()-t < 600 for t in history['attempts']) >= 3:
+        attempts = attempt_history(Path.home()/'.config/hifi-streamer/state/recovery.json')
+        if sum(time.time()-t < 600 for t in attempts) >= 3:
             raise AssertionError('automatic budget unavailable before fault injection')
     started = time.time()
     service = {'mpd':'hifi-mpd', 'start-limit':'hifi-mpd', 'route':'wireplumber',

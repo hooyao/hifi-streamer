@@ -25,6 +25,8 @@ Three stable one-second observations precede service recovery. The agent regener
 
 Automatic recovery permits three disruptive attempts per rolling ten minutes, with 5/20/60-second backoff and a 120-second attempt deadline. The last three timestamps persist across agent restarts. Missing hardware does not repeatedly restart the stack. Manual retry permits one bounded attempt, limited to once per minute. Recovery never resets the USB controller, changes firmware or reboots the host.
 
+Manual retry is available only after a failed recovery with the DAC present; healthy output does not offer a disruptive retry action. A healthy agent restart pauses existing playback and establishes an unowned ready baseline without consuming a service-repair attempt. Direct-output handoff clears the selected node's clock request even if a previous agent process set it.
+
 Recovery restores paused readiness with no owner. Request playback again after it finishes. Software volume is preserved when recreating an existing DAC sink; if no valid volume can be read, the existing host policy/configuration applies. No automatic unity-gain change is made. A full session recreation affects other audio clients in the same account, which is why a dedicated service account is required.
 
 Existing player streams are parked on standby during repair. The real DAC remains the default for newly created streams while its sink is suspended; a fresh playback request enters normal arbitration to release suspension and assign ownership. Keeping standby as the default after repair can leave Soloist's first new stream unlinked on the qualified PipeWire version.

@@ -7,13 +7,13 @@
 
 ## 2. Bounded recovery and maintenance coordination
 
-- [ ] 2.1 Add the cancellable recovery worker, three-observation debounce, deadlines/backoff and persistent global attempt budget; test flapping, worker cancellation, clock/boot changes, budget exhaustion and responsive status during blocked repair; document stages and limits in both product-documentation languages.
-- [ ] 2.2 Serialize configuration, updates and recovery through a shared maintenance lock without holding the status lock during subprocesses; test contention, stale config/device work, update rollback preservation and immediate ownership revocation on device loss.
+- [x] 2.1 Add the cancellable recovery worker, three-observation debounce, deadlines/backoff and persistent global attempt budget; test flapping, worker cancellation, clock/boot changes, budget exhaustion and responsive status during blocked repair; document stages and limits in both product-documentation languages.
+- [x] 2.2 Serialize configuration, updates and recovery through a shared maintenance lock without holding the status lock during subprocesses; test contention, stale config/device work, update rollback preservation and immediate ownership revocation on device loss.
 - [x] 2.3 Add the authenticated rate-limited retry endpoint and UI action; test login/Origin/CSRF, forbidden arbitrary arguments, missing-hardware behavior and bounded manual retry; document operator recovery in both product-documentation languages.
 
 ## 3. Service, route and playback restoration
 
-- [ ] 3.1 Reconcile stale MPD mappings and affected start-limit failures, renew adapter instances, preserve data/volume and restore paused readiness; test no unexpected resume, same-number nodes, optional disabled/unconfigured/expired sources and stale controller requests; update bilingual architecture/source documentation.
+- [x] 3.1 Reconcile stale MPD mappings and affected start-limit failures, renew adapter instances, preserve data/volume and restore paused readiness; test no unexpected resume, same-number nodes, optional disabled/unconfigured/expired sources and stale controller requests; update bilingual architecture/source documentation.
 - [x] 3.2 Implement narrow route repair and escalation to complete host-session recreation; test missing sink, unlinked stream, stopped Soloist, fresh socket/transport binding and finite stage/transaction limits; document dedicated-account effects in both product-documentation languages.
 - [x] 3.3 Verify playing-owner route/PCM after grace and repeated observations; test wrong/null output, normal idle suspension, silent tracks, transitions and decoder/HTTP errors that must not trigger stack restarts; document output-health semantics in both product-documentation languages.
 

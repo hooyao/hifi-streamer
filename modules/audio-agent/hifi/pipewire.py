@@ -41,7 +41,12 @@ class Hardware:
         self.standby()
         run('pactl', 'set-default-sink', 'hifi_standby')
         self.move('hifi_standby')
-        run('pactl', 'suspend-sink', self.sink(), '1')
+        try:
+            target = self.sink()
+        except RuntimeError:
+            target = None
+        if target:
+            run('pactl', 'suspend-sink', target, '1')
         self.ensure_released()
 
     def for_pipewire(self):

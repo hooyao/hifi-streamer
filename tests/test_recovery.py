@@ -284,3 +284,59 @@ class Tests(unittest.TestCase):
             with patch('hifi.recovery.threading.Thread'):
                 recovery.schedule()
             self.assertEqual(recovery.reason, 'output_stalled')
+
+    def test_service_lock_blocks_concurrent_update_and_recovery(self):
+        with tempfile.TemporaryDirectory() as directory:
+            entered = threading.Event()
+            done = threading.Event()
+            def update():
+                with maintenance_lock(directory):
+                    entered.set()
+                    done.wait(2)
+            worker = threading.Thread(target=update)
+            worker.start()
+            entered.wait(1)
+            try:
+                with self.assertRaises(BlockingIOError):
+                    with maintenance_lock(directory, blocking=False):
+                        self.fail('concurrent transaction entered')
+            finally:
+                done.set()
+                worker.join()
+            with maintenance_lock(directory, blocking=False):
+                pass
+
+    def test_repair_deadline_and_stale_generation_cancel_commands(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, recovery = self.fixture(directory)
+            recovery.hardware = self.hardware
+            with patch('hifi.recovery.subprocess.run') as run:
+                with self.assertRaises(TimeoutError):
+                    recovery.command(0, self.now, 'systemctl', '--user', 'start', 'hifi-mpd')
+                run.assert_not_called()
+                def replaced(*args, **kwargs):
+                    recovery.generation += 1
+                    return SimpleNamespace(stdout='')
+                run.side_effect = replaced
+                with self.assertRaises(Cancelled):
+                    recovery.command(0, self.now+30, 'systemctl', '--user', 'start', 'hifi-mpd')
+
+    def test_optional_expiry_preserves_dlna_ready(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime, recovery = self.fixture(directory)
+            recovery.hardware = self.hardware
+            runtime.repo = Path(directory)
+            runtime.adapters = {'dlna':Mock(), 'spotify':Mock()}
+            runtime.adapters['dlna'].snapshot.return_value = {'playback':'paused'}
+            runtime.adapters['spotify'].snapshot.side_effect = RuntimeError('expired')
+            runtime.adapters['spotify'].configured.return_value = True
+            runtime.renew_adapters = Mock()
+            def service(token, deadline, action, *names):
+                if 'ExecMainStatus' in names:
+                    return '10'
+                return 'failed' if action == 'show' else ''
+            with patch.object(recovery,'services',side_effect=service), \
+                    patch.object(recovery,'route'), patch.object(recovery,'pause'):
+                recovery.repair(0)
+            self.assertEqual(recovery.phase,'ready')
+            self.assertTrue(recovery.optional_blocked)

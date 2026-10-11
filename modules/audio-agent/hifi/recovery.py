@@ -1,6 +1,7 @@
 """Bounded, cancellable audio infrastructure repair."""
 import json
 import logging
+import math
 import subprocess
 import threading
 import time
@@ -36,8 +37,9 @@ class Recovery:
             self.history = {'attempts': [], 'last_manual': 0}
         values = self.history.get('attempts', [])
         self.attempts = [min(t, self.wall()) for t in values[-3:]
-                         if isinstance(t, (int, float))] if isinstance(values, list) else []
-        self.last_manual = self.history.get('last_manual', 0)
+                         if isinstance(t, (int, float)) and math.isfinite(t)] if isinstance(values, list) else []
+        manual_time = self.history.get('last_manual', 0)
+        self.last_manual = min(manual_time, self.wall()) if isinstance(manual_time, (int, float)) and math.isfinite(manual_time) else 0
         self.had_loss = False
         self.full_used = False
         self.transport_faults = 0
@@ -208,7 +210,7 @@ class Recovery:
         fault = self.reason
         self.full_used = False
         try:
-            with maintenance_lock(self.runtime.config.directory, blocking=False), self.runtime.lock:
+            with maintenance_lock(self.runtime.config.directory, blocking=False), self.control_lock(token, deadline):
                 self.check(token, deadline)
                 self.attempts = (self.attempts + [self.wall()])[-3:]
                 self.manual = False
@@ -319,6 +321,22 @@ class Recovery:
             LOG.warning('audio recovery failed: %s', type(error).__name__)
         finally:
             self.busy = False
+
+    def control_lock(self, token, deadline):
+        """Wait for arbitration with a deadline while hardware stays observable."""
+        import contextlib
+        @contextlib.contextmanager
+        def locked():
+            acquired = False
+            try:
+                while not acquired:
+                    self.check(token, deadline)
+                    acquired = self.runtime.lock.acquire(timeout=.2)
+                yield
+            finally:
+                if acquired:
+                    self.runtime.lock.release()
+        return locked()
 
     def full_session(self, token, deadline):
         if self.full_used:

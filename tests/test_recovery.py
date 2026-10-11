@@ -273,11 +273,14 @@ class Tests(unittest.TestCase):
             streams = [{'index':3, 'sink':4294967295,
                         'properties':{'application.process.binary':'soloist'}}]
             with patch.object(runtime.hardware, 'items', side_effect=lambda kind:sinks if kind=='sinks' else streams), \
-                    patch('hifi.pipewire.run'):
+                    patch('hifi.pipewire.run') as run:
                 with self.assertRaises(RuntimeError):
                     recovery.route()
                 streams[0]['sink'] = 2
                 recovery.route()
+                defaults = [call.args for call in run.call_args_list if
+                            call.args[:2] == ('pactl', 'set-default-sink')]
+                self.assertEqual(defaults[-1], ('pactl', 'set-default-sink', 'dac'))
 
     def test_budget_exhaustion_preserves_stall_cause_for_manual_retry(self):
         with tempfile.TemporaryDirectory() as directory:

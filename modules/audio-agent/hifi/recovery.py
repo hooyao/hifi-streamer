@@ -205,6 +205,8 @@ class Recovery:
         from .pipewire import run
         run('pactl', 'set-default-sink', 'hifi_standby')
         run('pactl', 'suspend-sink', target, '1')
+        # Newly created player streams need a real default; existing streams stay parked.
+        run('pactl', 'set-default-sink', target)
         standby = next(s for s in self.runtime.hardware.items('sinks') if s['name'] == 'hifi_standby')
         streams = self.runtime.hardware.items('sink-inputs')
         if any(s.get('properties', {}).get('application.process.binary') == 'soloist' and
@@ -229,6 +231,15 @@ class Recovery:
                 self.phase = 'services'
                 # The parent holds the maintenance lock for the child transaction.
                 if self.had_loss:
+                    # Start Pulse players against the real sink before parking them.
+                    # A stale standby default can leave their first stream unlinked.
+                    try:
+                        from .pipewire import run
+                        target = self.runtime.hardware.sink()
+                        run('pactl', 'suspend-sink', target, '0')
+                        run('pactl', 'set-default-sink', target)
+                    except Exception:
+                        pass
                     self.command(token, deadline, 'python3', str(self.runtime.repo / 'deploy/manage.py'),
                                  'apply', '--maintenance-held')
                 else:

@@ -27,6 +27,8 @@ Automatic recovery permits three disruptive attempts per rolling ten minutes, wi
 
 Recovery restores paused readiness with no owner. Request playback again after it finishes. Software volume is preserved when recreating an existing DAC sink; if no valid volume can be read, the existing host policy/configuration applies. No automatic unity-gain change is made. A full session recreation affects other audio clients in the same account, which is why a dedicated service account is required.
 
+Existing player streams are parked on standby during repair. The real DAC remains the default for newly created streams while its sink is suspended; a fresh playback request enters normal arbitration to release suspension and assign ownership. Keeping standby as the default after repair can leave Soloist's first new stream unlinked on the qualified PipeWire version.
+
 ## Verification
 
 Run Linux unit tests and the integration procedures in the [test guide](../testing/README.md). Deterministic tests cover missing/partial devices, generations, retry persistence and route failures. Hardware acceptance must additionally verify physical unplug/replug, power cycles and playback after recovery. A passed software test does not establish cable health or listening quality.

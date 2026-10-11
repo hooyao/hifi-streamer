@@ -20,8 +20,9 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--retry-only', action='store_true')
     parser.add_argument('--status', action='store_true')
-    parser.add_argument('--fault', choices=['mpd', 'route', 'player', 'session'], default='mpd')
+    parser.add_argument('--fault', choices=['mpd', 'start-limit', 'route', 'player', 'session'], default='mpd')
     parser.add_argument('--automatic-only', action='store_true')
+    parser.add_argument('--observe-usb', action='store_true')
     args = parser.parse_args()
     cookie = ''
     csrf = ''
@@ -58,6 +59,27 @@ def main():
 
     password = json.loads((Path.home()/'.config/hifi-streamer/admin.json').read_text())['password']
     api('login', {'password':password})
+    if args.observe_usb:
+        rows = []
+        missing = False
+        started = time.monotonic()
+        while time.monotonic()-started < 300:
+            output = api('status')['output']
+            state = (output['hardware']['availability'], output['recovery']['phase'],
+                     output['recovery']['reason'], output['owner'])
+            if not rows or rows[-1]['state'] != state:
+                rows.append({'seconds':round(time.monotonic()-started), 'state':state})
+            if state[0] == 'missing':
+                missing = True
+                assert state[2] == 'dac_missing' and output['owner'] is None
+            if missing and output['health'] == 'ready':
+                assert output['owner'] is None
+                args.report.parent.mkdir(parents=True, exist_ok=True)
+                args.report.write_text(json.dumps({'passed':True,'transitions':rows},indent=2))
+                print(json.dumps({'passed':True,'transitions':rows}))
+                return
+            time.sleep(1)
+        raise AssertionError('USB missing-to-ready acceptance did not complete')
     if args.status:
         print(json.dumps(api('status')['output']))
         return
@@ -72,8 +94,27 @@ def main():
         if sum(time.time()-t < 600 for t in history['attempts']) >= 3:
             raise AssertionError('automatic budget unavailable before fault injection')
     started = time.time()
-    service = {'mpd':'hifi-mpd', 'route':'wireplumber', 'player':'hifi-soloist', 'session':'wireplumber'}[args.fault]
-    subprocess.run(['systemctl','--user','stop',service],check=True)
+    service = {'mpd':'hifi-mpd', 'start-limit':'hifi-mpd', 'route':'wireplumber',
+               'player':'hifi-soloist', 'session':'wireplumber'}[args.fault]
+    if args.fault == 'start-limit':
+        dropin = Path.home()/'.config/systemd/user/hifi-mpd.service.d/recovery-test.conf'
+        if dropin.exists():
+            raise RuntimeError('test override already exists')
+        dropin.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            dropin.write_text('[Unit]\nStartLimitIntervalSec=60\nStartLimitBurst=2\n'
+                              '[Service]\nExecStart=\nExecStart=/usr/bin/false\nRestartSec=0.1\n')
+            subprocess.run(['systemctl','--user','daemon-reload'],check=True)
+            subprocess.run(['systemctl','--user','restart',service],check=False)
+            time.sleep(2)
+            result = subprocess.check_output(['systemctl','--user','show',service,
+                                              '-p','Result','--value'],text=True).strip()
+            assert result == 'start-limit-hit', result
+        finally:
+            dropin.unlink(missing_ok=True)
+            subprocess.run(['systemctl','--user','daemon-reload'],check=True)
+    else:
+        subprocess.run(['systemctl','--user','stop',service],check=True)
     if args.fault == 'session':
         subprocess.run(['systemctl','--user','stop','pipewire-pulse'],check=True)
     time.sleep(18)

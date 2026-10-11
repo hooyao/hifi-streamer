@@ -107,9 +107,11 @@ def main():
         if dropin.exists():
             raise RuntimeError('test override already exists')
         dropin.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['systemctl','--user','stop',service],check=True)
         try:
             dropin.write_text('[Unit]\nStartLimitIntervalSec=60\nStartLimitBurst=2\n'
-                              '[Service]\nExecStart=\nExecStart=/usr/bin/false\nRestartSec=0.1\n')
+                              '[Service]\nExecStartPre=\nExecStop=\nExecStart=\n'
+                              'ExecStart=/usr/bin/false\nRestartSec=0.1\n')
             subprocess.run(['systemctl','--user','daemon-reload'],check=True)
             subprocess.run(['systemctl','--user','restart',service],check=False)
             for _ in range(12):

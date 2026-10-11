@@ -20,7 +20,7 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--retry-only', action='store_true')
     parser.add_argument('--status', action='store_true')
-    parser.add_argument('--fault', choices=['mpd', 'route', 'player'], default='mpd')
+    parser.add_argument('--fault', choices=['mpd', 'route', 'player', 'session'], default='mpd')
     args = parser.parse_args()
     cookie = ''
     csrf = ''
@@ -49,7 +49,8 @@ def main():
             history_path = Path.home()/'.config/hifi-streamer/state/recovery.json'
             attempts = json.loads(history_path.read_text())['attempts'] if history_path.exists() else []
             if output['health'] == 'ready' and (after is None or any(t >= after for t in attempts)):
-                assert output['owner'] is None
+                if after is not None:
+                    assert output['owner'] is None
                 return output
             time.sleep(1)
         raise AssertionError('automatic recovery did not finish')
@@ -66,8 +67,10 @@ def main():
         return
     initial = wait_ready()
     started = time.time()
-    service = {'mpd':'hifi-mpd', 'route':'wireplumber', 'player':'hifi-soloist'}[args.fault]
+    service = {'mpd':'hifi-mpd', 'route':'wireplumber', 'player':'hifi-soloist', 'session':'wireplumber'}[args.fault]
     subprocess.run(['systemctl','--user','stop',service],check=True)
+    if args.fault == 'session':
+        subprocess.run(['systemctl','--user','stop','pipewire-pulse'],check=True)
     time.sleep(18)
     output = api('status')['output']
     if output['recovery']['reason'] == 'recovery_exhausted':

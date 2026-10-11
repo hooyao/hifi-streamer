@@ -42,6 +42,7 @@ class Recovery:
         self.full_used = False
         self.transport_faults = 0
         self.optional_blocked = False
+        self.pending_fault = 'service_failed'
 
     def status(self):
         with self.lock:
@@ -66,6 +67,8 @@ class Recovery:
             if self.wall() - self.last_manual < 60:
                 raise ValueError('retry is limited to once per minute')
             self.last_manual = self.wall()
+            if self.transport_faults or self.stalls:
+                self.pending_fault = 'output_stalled'
             self.manual, self.next_retry, self.ready_key = True, 0, None
             self.save()
             return {'status': 'recovery requested'}
@@ -118,13 +121,17 @@ class Recovery:
             self.runtime.core.state = 'idle'
             self.had_loss = False
         except Exception:
-            self.phase, self.reason = 'waiting', 'service_failed'
+            if token == self.generation:
+                self.phase, self.reason = 'waiting', 'service_failed'
         finally:
             self.busy = False
 
     def schedule(self, reason=None):
         """Coalesce repeated faults; a worker never holds the status lock."""
         with self.lock:
+            if reason:
+                if reason == 'output_stalled' or self.pending_fault != 'output_stalled':
+                    self.pending_fault = reason
             if self.busy or self.clock() < self.next_retry:
                 return
             self.attempts = [t for t in self.attempts if self.wall() - t < 600]
@@ -132,8 +139,7 @@ class Recovery:
                 self.phase, self.reason = 'failed', 'recovery_exhausted'
                 return
             self.busy = True
-            self.phase, self.reason = 'recovering', reason or (
-                self.reason if self.reason == 'output_stalled' else 'service_failed')
+            self.phase, self.reason = 'recovering', reason or self.pending_fault
             token = self.generation
             threading.Thread(target=self.repair, args=(token,), daemon=True).start()
 
@@ -297,6 +303,7 @@ class Recovery:
                 self.check(token, deadline)
                 self.ready_key, self.phase, self.reason = self.key, 'ready', None
                 self.had_loss = False
+                self.pending_fault = 'service_failed'
                 self.service_faults, self.transport_faults, self.stalls = 0, 0, 0
                 LOG.info('audio recovery completed')
         except BlockingIOError:
@@ -333,13 +340,29 @@ class Recovery:
             except Exception:
                 time.sleep(.5)
         self.runtime.hardware.restore_volume(volume)
-        self.route()
+        from .pipewire import run
+        target = self.runtime.hardware.sink()
+        run('pactl', 'suspend-sink', target, '0')
+        run('pactl', 'set-default-sink', target)
         if self.runtime.adapters['spotify'].configured() and not self.optional_blocked:
             try:
                 self.services(token, deadline, 'start', 'hifi-soloist')
             except subprocess.CalledProcessError:
                 LOG.warning('optional source did not start')
         self.runtime.renew_adapters()
+        if self.runtime.adapters['spotify'].configured() and not self.optional_blocked:
+            for _ in range(10):
+                self.check(token, deadline)
+                try:
+                    self.runtime.adapters['spotify'].snapshot()
+                    self.runtime.adapters['spotify'].command('pause')
+                    break
+                except Exception:
+                    time.sleep(.5)
+            else:
+                self.services(token, deadline, 'stop', 'hifi-soloist')
+                self.optional_blocked = True
+        self.route()
 
     def playback_health(self, snapshots):
         if self.phase != 'ready' or self.busy:

@@ -162,7 +162,8 @@ class Tests(unittest.TestCase):
             runtime.renew_adapters = Mock()
             saved = {'id':'dac', 'channels':[123, 123], 'mute':True}
             runtime.hardware.volume_snapshot.return_value = saved
-            with patch.object(recovery, 'services'), patch.object(recovery, 'route'):
+            with patch.object(recovery, 'services'), patch.object(recovery, 'route'), \
+                    patch('hifi.pipewire.run'):
                 recovery.full_session(0, self.now+120)
                 with self.assertRaises(RuntimeError):
                     recovery.full_session(0, self.now+120)
@@ -271,3 +272,15 @@ class Tests(unittest.TestCase):
                     recovery.route()
                 streams[0]['sink'] = 2
                 recovery.route()
+
+    def test_budget_exhaustion_preserves_stall_cause_for_manual_retry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, recovery = self.fixture(directory)
+            recovery.hardware = self.hardware
+            recovery.attempts = [998,999,1000]
+            recovery.schedule('output_stalled')
+            self.assertEqual(recovery.reason, 'recovery_exhausted')
+            recovery.retry()
+            with patch('hifi.recovery.threading.Thread'):
+                recovery.schedule()
+            self.assertEqual(recovery.reason, 'output_stalled')

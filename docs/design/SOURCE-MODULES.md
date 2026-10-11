@@ -14,6 +14,8 @@ Module declarations in `modules/sources/*/module.json` include stable ID, interf
 
 Adapters expose an instance ID, snapshot, release and acquire. Snapshots distinguish running, authenticated, active, playback and health. Unreachable adapters report unknown playback rather than pretending to be stopped.
 
+Recovery closes retired control transports and renews adapter instance IDs before returning to paused readiness. Hardware availability and actual output health remain independent from player snapshots; see [automatic recovery](../debugging/audio-recovery.md).
+
 The arbiter consumes source IDs, instance IDs and sequence numbers. It rejects stale/duplicate requests, serializes handoff and grants output only after verified hardware release. This does not give containers unrestricted device access.
 
 MPD-specific direct/null controls belong to the DLNA adapter. Soloist WebSocket commands belong to Spotify. PipeWire stream routing is output infrastructure.

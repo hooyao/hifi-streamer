@@ -24,25 +24,28 @@ class DocumentationTests(unittest.TestCase):
             with self.subTest(document=str(path.relative_to(ROOT))):
                 text = path.read_text(encoding='utf-8')
                 parts = list(path.relative_to(ROOT).parts)
-                if 'translations' in parts and parts[parts.index('translations')+1] == 'zh-CN':
-                    index = parts.index('translations')
-                    sibling = ROOT.joinpath(*parts[:index], *parts[index+2:])
-                elif path.name == 'spec.md' and 'specs' in parts:
-                    index = parts.index('specs')
-                    sibling = ROOT.joinpath(*parts[:index], 'translations', 'zh-CN', *parts[index:])
-                else:
+                if parts[0] != 'openspec':
                     chinese = path.name.endswith('.zh-CN.md')
                     sibling = path.with_name(path.name.replace('.zh-CN.md', '.md') if chinese
                                              else path.stem + '.zh-CN.md')
-                self.assertTrue(sibling.is_file(), f'missing edition: {sibling}')
-                language_links = re.findall(r'\]\(([^)]+)\)', '\n'.join(text.splitlines()[:5]))
-                self.assertTrue(any((path.parent / link).resolve() == sibling.resolve()
-                                    for link in language_links), 'missing reciprocal language link')
+                    self.assertTrue(sibling.is_file(), f'missing edition: {sibling}')
+                    language_links = re.findall(r'\]\(([^)]+)\)', '\n'.join(text.splitlines()[:5]))
+                    self.assertTrue(any((path.parent / link).resolve() == sibling.resolve()
+                                        for link in language_links), 'missing reciprocal language link')
                 for target in re.findall(r'\[[^\]]*\]\(([^)]+)\)', text):
                     file_target = target.split('#')[0]
                     if not file_target or re.match(r'^[a-z]+:', file_target):
                         continue
                     self.assertTrue((path.parent / file_target).exists(), f'broken link: {target}')
+
+    def test_openspec_is_english_only(self):
+        for path in (ROOT / 'openspec').rglob('*'):
+            with self.subTest(path=str(path.relative_to(ROOT))):
+                self.assertNotIn('zh-CN', path.as_posix())
+                self.assertNotIn('translations', path.parts)
+                if path.is_file():
+                    self.assertIsNone(HAN.search(path.read_text(encoding='utf-8')),
+                                      'OpenSpec content must be English')
 
     def test_python_comments_and_docstrings_are_english(self):
         for directory in ('modules', 'deploy', 'images', 'tests'):

@@ -14,6 +14,8 @@ DLNA为必备音源，Spotify为可选Soloist适配器。Roon、Apple Music和Am
 
 适配器提供instance ID、snapshot、release和acquire。快照区分运行、认证、本机active会话、播放与健康状态。无法访问时上报unknown播放状态，不假装已经停止。
 
+恢复会关闭旧控制传输并更新适配器实例 ID，再返回暂停就绪。硬件可用性和实际输出健康独立于播放器快照，参阅[自动恢复](../debugging/audio-recovery.zh-CN.md)。
+
 仲裁器使用source ID、instance ID及序号，拒绝旧/重复请求，串行交接，确认硬件释放后才授予输出权；这不会向容器开放任意设备权限。
 
 MPD的direct/null控制属于DLNA适配器；Soloist WebSocket命令属于Spotify适配器；PipeWire流路由属于输出基础设施。

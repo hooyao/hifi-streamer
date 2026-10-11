@@ -1,7 +1,5 @@
 # Proposal
 
-English | [简体中文](proposal.zh-CN.md)
-
 ## Why
 
 Make DLNA a reliable required source using real discovery and protocol controls with source-rate audio output.

@@ -1,7 +1,5 @@
 # Spec Delta
 
-English | [简体中文](../../translations/zh-CN/specs/source-control/spec.md)
-
 ## Purpose
 
 Provide a shared source contract and lightweight control plane so new services can reuse DAC discovery and ownership. This capability defines observable behavior, failure handling and repeatable acceptance criteria for device validation and future extensions.

@@ -13,6 +13,7 @@ class Arbiter:
         self.last_switch = 0
         self.seen = {}
         self.lock = threading.RLock()
+        self.valid_output = lambda: True
 
     def request(self, source, instance, sequence, force=False):
         with self.lock:
@@ -39,7 +40,11 @@ class Arbiter:
                     self.hardware.silence()
                 self.hardware.ensure_released()
                 self.owner = None
+                if not self.valid_output():
+                    raise RuntimeError('output generation unavailable')
                 self.adapters[source].acquire(self.generation)
+                if not self.valid_output():
+                    raise RuntimeError('output disconnected during acquisition')
                 self.owner, self.state = source, 'active'
                 self.last_switch = time.monotonic()
                 return True

@@ -1,7 +1,5 @@
 # Tasks
 
-English | [简体中文](tasks.zh-CN.md)
-
 ## 1. Implementation and verification
 
 - [x] 1.1 Implement compact images, GHCR workflow and size gates; verify builds, versions and measured sizes.

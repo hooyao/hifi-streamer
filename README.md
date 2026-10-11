@@ -80,7 +80,7 @@ Hardware tests can change playback state. See the [test guide](docs/testing/READ
 
 Changes use OpenSpec to define behavior, implementation decisions and verifiable acceptance criteria. See [Contributing](CONTRIBUTING.md) for the proposal, specification, implementation and review workflow.
 
-Code comments and docstrings are written in English. Maintained documentation has English and Simplified Chinese editions with reciprocal language links.
+Code comments and docstrings are written in English. Product and contributor documentation has English and Simplified Chinese editions with reciprocal language links. OpenSpec content is English only.
 
 ## License
 

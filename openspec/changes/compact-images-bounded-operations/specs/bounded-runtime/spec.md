@@ -1,7 +1,5 @@
 # Spec Delta
 
-English | [简体中文](../../translations/zh-CN/specs/bounded-runtime/spec.md)
-
 ## Purpose
 
 Bound resource consumption on memory- and storage-constrained ARM devices while building compact images remotely. This capability defines observable behavior, failure handling and repeatable acceptance criteria for device validation and future extensions.

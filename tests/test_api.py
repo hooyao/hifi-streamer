@@ -4,6 +4,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import Mock
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'modules/audio-agent'))
@@ -14,6 +15,8 @@ from hifi.config import Config
 class Runtime:
     def __init__(self, directory):
         self.config = Config(directory)
+        self.recovery = Mock()
+        self.recovery.retry.return_value = {'status': 'recovery requested'}
     def status(self):
         return {'config':self.config.public()}
     def apply(self, data):
@@ -44,6 +47,12 @@ class Tests(unittest.TestCase):
                 self.assertEqual(request('config', {'mode':'dlna'}, cookie, login['csrf'], False)[0], 403)
                 self.assertEqual(request('config', {'spotify_key':'secret'}, cookie, login['csrf'])[0], 200)
                 self.assertNotIn('secret', json.dumps(request('status', cookie=cookie)[1]))
+                self.assertEqual(request('recovery/retry', {}, cookie)[0], 403)
+                self.assertEqual(request('recovery/retry', {}, cookie, login['csrf'], False)[0], 403)
+                self.assertEqual(request('recovery/retry', {'command':'reboot'}, cookie, login['csrf'])[0], 400)
+                self.assertEqual(request('recovery/retry', {}, cookie, login['csrf'])[0], 202)
+                runtime.recovery.retry.side_effect = ValueError('DAC unavailable')
+                self.assertEqual(request('recovery/retry', {}, cookie, login['csrf'])[0], 409)
             finally:
                 server.shutdown()
                 server.server_close()

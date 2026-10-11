@@ -1,7 +1,5 @@
 # Spec Delta
 
-English | [简体中文](../../translations/zh-CN/specs/source-arbitration/spec.md)
-
 ## Purpose
 
 Integrate optional Soloist playback with a required DLNA source while keeping DAC arbitration extensible beyond two sources. This capability defines observable behavior, failure handling and repeatable acceptance criteria for device validation and future extensions.

@@ -18,12 +18,12 @@ soloist = Soloist(None,lambda:True)
 assert soloist.snapshot()['authenticated'], 'Pair using the Spotify app first'
 soloist.command('activate')
 soloist.command('play')
-usb_rate(args.card,44100)
+usb_rate(args.card,44100,timeout=20)
 subprocess.run([sys.executable,str(Path(__file__).with_name('dlna_smoke.py')),'--card',str(args.card),'--dsd','--report',str(args.report.with_suffix('.dlna.json'))],check=True)
 assert soloist.snapshot()['playback'] == 'paused', 'DLNA did not pause Spotify'
 soloist.command('activate')
 soloist.command('play')
-stream = usb_rate(args.card,44100)
+stream = usb_rate(args.card,44100,timeout=20)
 assert MPD(None).snapshot()['playback'] != 'playing'
 outputs = MPD(None).command('outputs')
 assert 'outputenabled: 0' in outputs

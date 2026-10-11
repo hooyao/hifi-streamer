@@ -36,6 +36,8 @@ DLNA交接将Spotify移到standby、挂起硬件sink、启用MPD直出。Spotify
 
 拔出撤销输出权；插回重新生成映射，必要时重建容器，默认保持暂停。
 
+[恢复监督器](../debugging/audio-recovery.zh-CN.md)独立于缓慢播放器控制观察硬件，报告输出错误并按持久重试预算修复服务/路由。部署、更新和恢复共用维护锁，修复期间状态查询保持响应。
+
 ## 网络与存储
 
 媒体容器用host网络支持发现；MPD和Soloist控制端点只监听loopback。Web监听8080，session、Origin验证与CSRF保护状态修改。

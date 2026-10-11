@@ -1,7 +1,5 @@
 # Tasks
 
-English | [简体中文](tasks.zh-CN.md)
-
 ## 1. Implementation and verification
 
 - [x] 1.1 Implement module declarations, configuration and USB discovery; verify card-number changes, secret redaction and invalid configuration with unit tests.

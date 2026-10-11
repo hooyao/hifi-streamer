@@ -1,7 +1,5 @@
 # Proposal
 
-English | [简体中文](proposal.zh-CN.md)
-
 ## Why
 
 Bound resource consumption on memory- and storage-constrained ARM devices while building compact images remotely.

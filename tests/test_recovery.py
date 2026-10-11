@@ -235,6 +235,7 @@ class Tests(unittest.TestCase):
             runtime.core.hardware = runtime.hardware
             runtime.connected, runtime.card = True, 1
             runtime.previous = {'dlna':True}
+            runtime.blocked_intents = {'dlna'}
             with patch.object(runtime,'selected',return_value={'card':1}), \
                     patch.object(runtime.recovery,'playback_health'):
                 runtime.tick()

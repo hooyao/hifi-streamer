@@ -60,3 +60,19 @@ class Tests(unittest.TestCase):
                 runtime.tick()
             self.assertEqual(runtime.snapshots['dlna']['health'],'healthy')
             self.assertEqual(runtime.snapshots['spotify']['playback'],'unknown')
+
+    def test_fast_controller_stop_play_can_reacquire_without_polling_stop(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Runtime(Path(__file__).resolve().parents[1],directory)
+            runtime.recovery.phase = 'ready'
+            adapters = {'dlna':Adapter('playing'), 'spotify':Adapter('stopped')}
+            runtime.adapters, runtime.core.adapters = adapters, adapters
+            runtime.hardware = Hardware()
+            runtime.core.hardware = runtime.hardware
+            runtime.connected, runtime.card = True, 1
+            runtime.previous['dlna'] = True
+            runtime.core.owner = None
+            with patch.object(runtime,'selected',return_value={'card':1}), \
+                    patch.object(runtime.recovery,'playback_health'):
+                runtime.tick()
+            self.assertEqual(runtime.core.owner,'dlna')

@@ -52,6 +52,7 @@ class Recovery:
             hardware = {k: v for k, v in self.hardware.items() if k != 'incarnation'}
             return {'hardware': hardware, 'health': 'ready' if self.phase == 'ready' else 'degraded',
                     'recovery': {'phase': self.phase, 'reason': self.reason,
+                                 'route_failures': self.stalls,
                                  'attempts': sum(self.wall() - t < 600 for t in self.attempts), 'retry_available':
                                  self.hardware['availability'] == 'ready' and not self.busy
                                  and self.wall() - self.last_manual >= 60,
@@ -97,6 +98,7 @@ class Recovery:
                 self.runtime.core.owner = None
                 self.runtime.core.state = 'disconnected'
                 self.runtime.previous.clear()
+                self.runtime.blocked_intents = set(self.runtime.adapters)
                 self.had_loss = True
             if hardware['availability'] != 'ready':
                 self.boot_checked = True
@@ -326,12 +328,16 @@ class Recovery:
                     else:
                         raise
                 self.runtime.previous.clear()
+                self.runtime.blocked_intents = set()
                 for name, adapter in self.runtime.adapters.items():
                     try:
                         snapshot = adapter.snapshot()
                         self.runtime.previous[name] = snapshot.get('playback') == 'playing'
+                        if self.runtime.previous[name]:
+                            self.runtime.blocked_intents.add(name)
                     except Exception:
                         self.runtime.previous[name] = True
+                        self.runtime.blocked_intents.add(name)
                 self.runtime.core.owner, self.runtime.core.state = None, 'idle'
                 self.check(token, deadline)
                 self.ready_key, self.phase, self.reason = self.key, 'ready', None

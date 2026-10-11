@@ -31,6 +31,7 @@ class Runtime:
         self.snapshots = {}
         self.sequence = {name:0 for name in self.modules}
         self.previous = {}
+        self.blocked_intents = set()
         self.connected = False
         self.card = None
         self.lock = threading.RLock()
@@ -123,7 +124,10 @@ class Runtime:
                 snapshot = self.snapshots[name]
                 playing = snapshot['playback'] == 'playing' and snapshot.get('active', False)
                 edge = playing and not self.previous.get(name, False)
-                if not switched and playing and edge and self.core.owner != name and (policy == name or policy == 'auto') and selected:
+                if not playing:
+                    self.blocked_intents.discard(name)
+                fresh = edge or self.core.owner is None and name not in self.blocked_intents
+                if not switched and playing and fresh and name not in self.blocked_intents and self.core.owner != name and (policy == name or policy == 'auto') and selected:
                     token = self.recovery.generation
                     self.sequence[name] += 1
                     try:

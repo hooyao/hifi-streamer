@@ -106,9 +106,12 @@ def main():
                               '[Service]\nExecStart=\nExecStart=/usr/bin/false\nRestartSec=0.1\n')
             subprocess.run(['systemctl','--user','daemon-reload'],check=True)
             subprocess.run(['systemctl','--user','restart',service],check=False)
-            time.sleep(2)
-            result = subprocess.check_output(['systemctl','--user','show',service,
-                                              '-p','Result','--value'],text=True).strip()
+            for _ in range(12):
+                result = subprocess.check_output(['systemctl','--user','show',service,
+                                                  '-p','Result','--value'],text=True).strip()
+                if result == 'start-limit-hit':
+                    break
+                time.sleep(.5)
             assert result == 'start-limit-hit', result
         finally:
             dropin.unlink(missing_ok=True)

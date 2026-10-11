@@ -5,7 +5,11 @@ import json
 import socket
 import subprocess
 import time
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'modules/audio-agent'))
+from hifi.service_lock import maintenance_lock
 
 
 class UnixConnection(http.client.HTTPConnection):
@@ -108,22 +112,33 @@ def main():
             raise RuntimeError('test override already exists')
         dropin.parent.mkdir(parents=True, exist_ok=True)
         subprocess.run(['systemctl','--user','stop',service],check=True)
-        try:
-            dropin.write_text('[Unit]\nStartLimitIntervalSec=60\nStartLimitBurst=2\n'
-                              '[Service]\nExecStartPre=\nExecStop=\nExecStart=\n'
-                              'ExecStart=/usr/bin/false\nRestartSec=0.1\n')
-            subprocess.run(['systemctl','--user','daemon-reload'],check=True)
-            subprocess.run(['systemctl','--user','restart',service],check=False)
-            for _ in range(12):
-                result = subprocess.check_output(['systemctl','--user','show',service,
-                                                  '-p','Result','--value'],text=True).strip()
-                if result == 'start-limit-hit':
-                    break
+        with maintenance_lock(Path.home()/'.config/hifi-streamer'):
+            try:
+                dropin.write_text('[Unit]\nStartLimitIntervalSec=60\nStartLimitBurst=2\n'
+                                  '[Service]\nExecStartPre=\nExecStop=\nExecStart=\n'
+                                  'ExecStart=/usr/bin/false\nRestartSec=0.1\n')
+                subprocess.run(['systemctl','--user','daemon-reload'],check=True)
+                subprocess.run(['systemctl','--user','reset-failed',service],check=True)
+                subprocess.run(['systemctl','--user','restart',service],check=False)
+                for _ in range(20):
+                    rows = subprocess.check_output(['systemctl','--user','show',service,
+                        '-p','ActiveState','-p','NRestarts','-p','Result'],text=True).splitlines()
+                    state = dict(row.split('=',1) for row in rows)
+                    if state['ActiveState'] == 'failed' and int(state['NRestarts']) >= 2:
+                        break
+                    time.sleep(.5)
+                assert state['ActiveState'] == 'failed' and int(state['NRestarts']) >= 2, state
+                # Some systemd versions preserve exit-code after restart throttling.
+                before = state['NRestarts']
+                attempt = subprocess.run(['systemctl','--user','start',service],capture_output=True)
+                assert attempt.returncode != 0, 'rate-limited start unexpectedly succeeded'
                 time.sleep(.5)
-            assert result == 'start-limit-hit', result
-        finally:
-            dropin.unlink(missing_ok=True)
-            subprocess.run(['systemctl','--user','daemon-reload'],check=True)
+                after = subprocess.check_output(['systemctl','--user','show',service,
+                                                 '-p','NRestarts','--value'],text=True).strip()
+                assert after == before, 'start was not throttled'
+            finally:
+                dropin.unlink(missing_ok=True)
+                subprocess.run(['systemctl','--user','daemon-reload'],check=True)
     else:
         subprocess.run(['systemctl','--user','stop',service],check=True)
     if args.fault == 'session':

@@ -28,9 +28,46 @@ class Hardware:
             raise RuntimeError('DAC sink not found or ambiguous')
         return sinks[0]['name']
 
-    def standby(self):
-        if not any(s['name'] == 'hifi_standby' for s in self.items('sinks')):
-            run('pactl', 'load-module', 'module-null-sink', 'sink_name=hifi_standby')
+    def direct_profile(self):
+        """Use the selected USB device's hardware PCM instead of ALSA front/dmix."""
+        dac = self.selected()
+        cards = [c for c in self.items('cards') if
+                 str(c.get('properties', {}).get('alsa.card')) == str(dac['card'])]
+        if len(cards) != 1:
+            raise RuntimeError('DAC card missing or ambiguous')
+        card = cards[0]
+        if card.get('active_profile') == 'pro-audio':
+            return
+        profile = card.get('profiles', {}).get('pro-audio')
+        if not profile or not profile.get('available'):
+            raise RuntimeError('DAC hardware profile unavailable')
+        try:
+            saved = self.volume_snapshot()
+        except Exception:
+            saved = None
+        run('pactl', 'set-card-profile', card['name'], 'pro-audio')
+        for _ in range(20):
+            try:
+                self.sink()
+                self.restore_volume(saved)
+                return
+            except RuntimeError:
+                time.sleep(.1)
+        raise RuntimeError('DAC hardware sink did not appear')
+
+    def hardware_path_ready(self):
+        target = self.sink()
+        sink = next(s for s in self.items('sinks') if s['name'] == target)
+        return str(sink.get('properties', {}).get('api.alsa.path', '')).startswith('hw:')
+
+    def standby(self, reconcile=False):
+        existing = next((s for s in self.items('sinks') if s['name'] == 'hifi_standby'), None)
+        if reconcile and existing and not existing.get('sample_specification', '').endswith('44100Hz'):
+            # Called only with players paused by the maintenance supervisor.
+            run('pactl', 'unload-module', str(existing['owner_module']))
+            existing = None
+        if not existing:
+            run('pactl', 'load-module', 'module-null-sink', 'sink_name=hifi_standby', 'rate=44100')
 
     def move(self, target):
         for stream in self.items('sink-inputs'):
@@ -39,6 +76,7 @@ class Hardware:
 
     def for_direct(self):
         self.standby()
+        run('pactl', 'suspend-sink', 'hifi_standby', '0')
         run('pactl', 'set-default-sink', 'hifi_standby')
         self.move('hifi_standby')
         try:
@@ -54,9 +92,10 @@ class Hardware:
             self.mpd.release()
         self.ensure_released()
         target = self.sink()
-        run('pactl', 'suspend-sink', target, '0')
         run('pactl', 'set-default-sink', target)
         self.move(target)
+        run('pactl', 'suspend-sink', 'hifi_standby', '1')
+        run('pactl', 'suspend-sink', target, '0')
 
     def ensure_released(self):
         dac = self.selected()

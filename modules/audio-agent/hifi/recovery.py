@@ -123,6 +123,8 @@ class Recovery:
             self.runtime.adapters['dlna'].snapshot()
             if self.runtime.adapters['spotify'].configured():
                 self.runtime.hardware.sink()
+                if not self.runtime.hardware.hardware_path_ready():
+                    raise RuntimeError('DAC hardware path needs configuration')
             if token != self.generation or self.hardware['availability'] != 'ready':
                 return
             self.ready_key, self.phase, self.reason = self.key, 'ready', None
@@ -227,6 +229,12 @@ class Recovery:
                 self.save()
                 counted = True
                 self.pause()
+                if self.runtime.adapters['spotify'].configured():
+                    try:
+                        self.runtime.hardware.direct_profile()
+                    except Exception:
+                        pass
+                self.runtime.hardware.standby(reconcile=True)
                 self.runtime.core.owner, self.runtime.core.state = None, 'switching'
                 self.phase = 'services'
                 # The parent holds the maintenance lock for the child transaction.
@@ -260,11 +268,15 @@ class Recovery:
                 self.runtime.adapters['dlna'].command('pause 1')
                 self.phase = 'route'
                 try:
+                    if self.runtime.adapters['spotify'].configured():
+                        self.runtime.hardware.direct_profile()
                     self.route()
                 except Exception:
                     self.services(token, deadline, 'restart', 'wireplumber')
                     time.sleep(2)
                     try:
+                        if self.runtime.adapters['spotify'].configured():
+                            self.runtime.hardware.direct_profile()
                         self.route()
                     except Exception:
                         self.full_session(token, deadline)
@@ -377,6 +389,9 @@ class Recovery:
             except Exception:
                 time.sleep(.5)
         self.runtime.hardware.restore_volume(volume)
+        if self.runtime.adapters['spotify'].configured():
+            self.runtime.hardware.direct_profile()
+            self.runtime.hardware.restore_volume(volume)
         from .pipewire import run
         target = self.runtime.hardware.sink()
         run('pactl', 'suspend-sink', target, '0')

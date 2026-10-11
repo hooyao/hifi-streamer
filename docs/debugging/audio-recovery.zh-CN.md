@@ -29,6 +29,8 @@ Agent 独立于播放器轮询观察配置的 DAC。Spotify 或 DLNA 服务存�
 
 修复时已有播放器流停放在 standby。真实 DAC 保持为新建流的默认目标，但 sink 挂起；新的播放请求经过正常仲裁后解除挂起并取得所有权。在已验证的 PipeWire 版本上，恢复后继续默认指向 standby 可能使 Soloist 首个新流无法连接。
 
+所选 DAC 使用 PipeWire Pro Audio 配置，指向 ALSA `hw` PCM。模拟 `front` 路径可能触发 ALSA 转换，PipeWire 显示 44.1kHz 本身不能证明 USB 实际为 44.1kHz。修复选择硬件配置时保留增益/静音，在音源暂停时协调旧 48kHz standby 节点，并先迁移流再解除 DAC 挂起。冷启动和交接后应验证实际 USB 反馈。
+
 ## 验证
 
 运行 Linux 单元测试和[测试指南](../testing/README.zh-CN.md)的集成步骤。确定性测试覆盖设备缺失/部分枚举、代次、重试持久化和路由故障。硬件验收还须验证真实拔插、断电和恢复后的播放。软件测试通过不证明线缆健康或听感质量。

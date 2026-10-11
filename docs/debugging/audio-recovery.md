@@ -29,6 +29,8 @@ Recovery restores paused readiness with no owner. Request playback again after i
 
 Existing player streams are parked on standby during repair. The real DAC remains the default for newly created streams while its sink is suspended; a fresh playback request enters normal arbitration to release suspension and assign ownership. Keeping standby as the default after repair can leave Soloist's first new stream unlinked on the qualified PipeWire version.
 
+The selected DAC uses the PipeWire Pro Audio profile to address its ALSA `hw` PCM. An analog `front` path can invoke ALSA conversion: a 44.1kHz PipeWire format alone does not prove 44.1kHz USB transport. Repair preserves gain/mute when selecting the hardware profile, reconciles an old 48kHz standby node while sources are paused, and transfers streams before releasing DAC suspension. Verify actual USB feedback after cold boot and handoff.
+
 ## Verification
 
 Run Linux unit tests and the integration procedures in the [test guide](../testing/README.md). Deterministic tests cover missing/partial devices, generations, retry persistence and route failures. Hardware acceptance must additionally verify physical unplug/replug, power cycles and playback after recovery. A passed software test does not establish cable health or listening quality.

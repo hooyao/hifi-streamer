@@ -1,0 +1,54 @@
+# Troubleshooting
+
+English | [简体中文](troubleshooting.zh-CN.md)
+
+## No sound
+
+Inspect actual playback and route independently:
+
+```sh
+pactl list short sinks
+pactl list short sink-inputs
+pw-link -l
+cat /proc/asound/card*/stream0
+```
+
+A playing UI does not prove hardware output. Confirm the selected USB DAC is present, the stream targets it and the sink is not suspended. Keep one audio server: PipeWire Pulse; do not start a second PulseAudio daemon.
+
+## Low volume or unexpected rate
+
+Check source session volume, sink-input volume, sink volume and hardware mixer. Spotify initial_volume defaults to 40%; a sink at 40% adds about 23.9dB attenuation. Lower hardware listening volume before correcting gain.
+
+Check `pw-metadata -n settings 0` and the installed allowed-rates configuration. A 44.1kHz stream at 48kHz indicates resampling. DSD64 DoP uses 176.4kHz transport; do not interpret it as a Spotify format.
+
+## Busy or missing DAC
+
+MPD must keep a standby output available after a standalone restart. Its persisted direct-output state may be disabled; if both outputs are disabled, a new DLNA request can fail before arbitration observes a playing edge. Deployment enables standby at startup and disables it during direct playback handoff.
+
+`Device or resource busy` indicates another owner. Confirm MPD direct output and PipeWire are not active on the DAC together. Do not use software state alone as proof of release.
+
+`No such device` requires fresh USB discovery. Re-enumeration can invalidate a container bind mount even when the card number is unchanged. Preserve session data while rebuilding mappings.
+
+## Pops and discontinuities
+
+Isolate the path: ALSA-only generated tone, PipeWire tone, then the service stream. Record CPU frequency, USB errors, route and timing under the same conditions. Do not keep changing several variables simultaneously.
+
+On the qualified M401A/kernel profile, CPU PLL errors during scaling are associated with discontinuities; fixed 1.2GHz is a tested workaround. See [hardware profile](../testing/m401a.md). Larger buffers alone are not an established fix. Tone/rate checks do not replace listening acceptance.
+
+## Rootless services
+
+Check the service account's audio group, subuid/subgid allocation and linger. Use its `systemctl --user` and `podman`; root's containers are a different namespace. Read XDG_RUNTIME_DIR instead of hard-coding a UID.
+
+## Soloist startup and control
+
+The binary needs its compatible glibc and runtime libraries in the container. Enable the loopback WebSocket endpoint for actual state/control. Inspect version and build expiry; exit 10 must not be restarted forever.
+
+Podman 4.3 rejects uid/gid options on the tested tmpfs mount. The cache uses a dedicated 128MiB tmpfs with mode 1777 inside the isolated container. Mount the Pulse socket directory, not a stale single socket.
+
+## Protocol and update failures
+
+For cgroup OOM or increasing HTTP playback memory, see [MPD memory budgets](mpd-memory.md).
+
+HTTP seek requires Range support from the media source. Renderer capabilities must match actual output controls; do not add unsupported MPD parameters such as close_on_pause.
+
+Update candidates require immutable references, compatible metadata, enough space, idle output and a viable rollback version. Use recent bounded logs; do not publish credentials or full inspect output.

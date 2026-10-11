@@ -1,0 +1,8 @@
+.git
+.agents
+.local-build
+docs
+openspec
+tests
+**/__pycache__
+**/*.log

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HiFi Streamer</title>
+<style>body{font:16px system-ui;max-width:900px;margin:40px auto;padding:0 20px;background:#10151d;color:#e1e9f4}section{background:#1b2430;padding:22px;margin:18px 0;border-radius:12px}label{display:block;margin:14px 0}input,select,button{padding:9px;border-radius:5px;border:1px solid #637087;background:#10151d;color:inherit}button{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}#message{color:#f8c980}</style>
+<h1>HiFi Streamer</h1><p id="message" role="status"></p>
+<section id="login"><h2>登录设备</h2><form id="loginForm"><label>管理密码 <input type="password" id="password" autocomplete="current-password" required></label><button>登录</button></form></section>
+<main hidden id="main"><section><h2>播放状态</h2><pre id="status"></pre></section>
+<section><h2>音频设置</h2><form id="configForm">
+<label>USB DAC <select id="dac"></select></label>
+<label>模式 <select id="mode"><option value="auto">自动切换</option><option value="dlna">固定 DLNA</option><option value="spotify">固定 Spotify</option></select></label>
+<label>同时请求时优先 <select id="priority"><option value="dlna">DLNA</option><option value="spotify">Spotify</option></select></label>
+<label>DLNA 名称 <input id="dlnaName" maxlength="64" required></label>
+<label><input id="spotifyEnabled" type="checkbox"> 启用 Spotify</label>
+<label>Spotify 名称 <input id="spotifyName" maxlength="64" required></label>
+<label>Spotify 启动音量 (%) <input id="initialVolume" type="number" min="0" max="100" value="40" required></label>
+<label>Soloist API key <input id="key" type="password" autocomplete="off" placeholder="留空保留已有 key"></label>
+<button>保存并应用</button><p>DLNA 是必备音源。应用设置会短暂中断播放；DAC 拔插后默认不自动恢复。</p></form></section>
+<section><h2>更新</h2><p>空闲时应用已验证镜像。更新源由管理员配置；回滚需版本仍有效且数据兼容。</p><button id="checkUpdates">查看更新状态</button><pre id="updates"></pre><select id="updateComponent"><option value="soloist">Spotify / Soloist</option><option value="web">网页</option></select> <button id="update">更新</button> <button id="rollback">回滚</button></section>
+<section><h2>诊断</h2><button id="diagnostics">读取近期日志</button><pre id="logs"></pre></section></main>
+<script>
+let csrf='',editing=false;
+const el=id=>document.getElementById(id);
+async function api(path,data){const response=await fetch('/api/'+path,{method:data?'POST':'GET',headers:data?{'Content-Type':'application/json','X-CSRF-Token':csrf}:{},body:data?JSON.stringify(data):undefined});const result=await response.json();if(!response.ok)throw Error(result.error);return result}
+async function refresh(fill=false){try{const data=await api('status');csrf=data.csrf;el('login').hidden=true;el('main').hidden=false;el('status').textContent=JSON.stringify({output:data.output,sources:data.sources},null,2);if(fill){el('dac').replaceChildren(...data.devices.map(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=d.name+' · '+d.port;return o}));el('dac').value=data.config.dac;el('mode').value=data.config.mode;el('priority').value=data.config.priority;el('dlnaName').value=data.config.sources.dlna.name;el('spotifyName').value=data.config.sources.spotify.name;el('spotifyEnabled').checked=data.config.sources.spotify.enabled;el('initialVolume').value=data.config.sources.spotify.initial_volume??40;el('key').placeholder=data.config.spotify_key_set?'已设置，留空保留':'输入设备 API key'}}catch(error){el('message').textContent=error.message}}
+el('loginForm').onsubmit=async event=>{event.preventDefault();try{await api('login',{password:el('password').value});el('password').value='';el('message').textContent='';await refresh(true)}catch(error){el('message').textContent=error.message}};
+el('configForm').onsubmit=async event=>{event.preventDefault();const data={dac:el('dac').value,mode:el('mode').value,priority:el('priority').value,sources:{dlna:{name:el('dlnaName').value},spotify:{name:el('spotifyName').value,enabled:el('spotifyEnabled').checked,initial_volume:Number(el('initialVolume').value)}}};if(el('key').value)data.spotify_key=el('key').value;try{await api('config',data);el('key').value='';el('message').textContent='设置已应用';await refresh(true)}catch(error){el('message').textContent=error.message}};
+el('diagnostics').onclick=async()=>{try{el('logs').textContent=(await api('diagnostics')).log}catch(error){el('message').textContent=error.message}};
+el('checkUpdates').onclick=async()=>{try{el('updates').textContent=JSON.stringify(await api('updates'),null,2)}catch(error){el('message').textContent=error.message}};
+for(const action of ['update','rollback'])el(action).onclick=async()=>{try{await api('update',{component:el('updateComponent').value,action});el('message').textContent='已请求操作，请稍后检查状态'}catch(error){el('message').textContent=error.message}};
+refresh(true);setInterval(()=>{if(!el('main').hidden)refresh()},5000);
+</script></html>

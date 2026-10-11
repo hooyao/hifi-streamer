@@ -1,0 +1,1 @@
+{"id":"dlna","interface_version":1,"required":true,"adapter":"mpd","outputs":["alsa-exclusive"],"controls":["pause","stop","resume","seek"],"components":["mpd","upmpdcli"]}

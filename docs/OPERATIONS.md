@@ -1,0 +1,93 @@
+# Operations
+
+English | [简体中文](OPERATIONS.zh-CN.md)
+
+## Host setup
+
+Use a dedicated service account on systemd Linux. Install dependencies as root, grant audio-device access and enable linger:
+
+```sh
+sudo sh deploy/host-setup.sh
+sudo usermod -aG audio "$USER"
+sudo loginctl enable-linger "$USER"
+```
+
+Log out and back in after changing groups. Rootless Podman requires unique subuid/subgid ranges and crun. Run application commands as the service account:
+
+```sh
+systemctl --user enable --now pipewire pipewire-pulse wireplumber
+sh deploy/install.sh
+```
+
+## Images and initial DAC selection
+
+Components are mpd, upmpdcli, soloist and web. Pull verified registry digests or import validated OCI exports. Registry visibility is independent of source-repository visibility.
+
+```sh
+podman pull ghcr.io/hooyao/hifi-streamer/soloist@sha256:<verified-digest>
+```
+
+Write the four immutable references to `~/.config/hifi-streamer/images.json`. Values must be full registry digest references or local `sha256:<image-id>`, not mutable tags. For local bootstrap, tag each image `localhost/hifi-<component>:dev`, then run `python3 deploy/manage.py record-images`.
+
+Before the web container is available, select the stable DAC ID:
+
+```sh
+PYTHONPATH=modules/audio-agent python3 - <<'PY'
+from pathlib import Path
+from hifi.config import Config
+from hifi.devices import discover
+devices = discover()
+for device in devices:
+    print(device["id"], device["name"])
+with open('/dev/tty') as terminal:
+    print("DAC ID: ", end="", flush=True)
+    selected = terminal.readline().strip()
+Config(Path.home() / ".config/hifi-streamer").update({"dac": selected}, devices)
+PY
+python3 deploy/manage.py apply
+systemctl --user enable --now hifi-web
+```
+
+## Web configuration and volume
+
+Open `http://<device-address>:8080`. Read the generated password from the private `~/.config/hifi-streamer/admin.json`. Configure DAC, names, priority and source mode. Enable Spotify, supply its key and pair from the Spotify app.
+
+DLNA direct output has no software mixer. Spotify session volume and PipeWire sink volume are separate. Startup volume defaults to 40% and is configurable from 0 to 100. For unity gain use 100% session and 0dB host sink, then control listening volume on the DAC/amplifier. Lower hardware volume before increasing software volume.
+
+## Budgets
+
+| Resource | Limit |
+| --- | --- |
+| Agent | 96MiB, 32 tasks |
+| MPD / upmpdcli / Soloist / web | 128 / 96 / 256 / 32MiB |
+| Container processes | 64 PIDs each |
+| Agent log | 1MiB current + 2 backups |
+| Container log | 2MiB k8s-file |
+| Host journal | 32MiB persistent, 16MiB runtime, 4MiB files, 7 days |
+| Soloist cache | 128MiB tmpfs, 100MB binary cache target |
+| Diagnostics | 200 lines / 64KiB |
+| Image gates: MPD / upmpdcli / Soloist / web | 200 /160 /180 /40MiB uncompressed |
+
+Journal limits affect the whole host. Podman events and web access logging are disabled. Sessions persist; cache does not. Podman vfs storage can exceed final image size due to duplicated layers. Preserve current/rollback images; avoid global prune on shared hosts.
+
+## Updates
+
+```sh
+python3 deploy/update.py release.json
+```
+
+Soloist and web update independently. MPD/upmpdcli need a coordinated DLNA release. Record verified current metadata in `<component>-release.json` first.
+
+Manifests contain component, immutable image, device-inspected size and data_version=1; Soloist also has expires_at from its binary build timestamp. Updates require idle output, space, compatible data and an unexpired rollback image. A process lock serializes updates. Failure restores the original service and metadata; HTTP/WebSocket health checks do not replace audio acceptance.
+
+The daily timer reads HTTPS channels from `update-channels.json` and stores candidates. No channels means no network requests. Web update/rollback uses those verified candidates.
+
+## Inspection
+
+```sh
+systemctl --user is-active hifi-agent hifi-mpd hifi-upmpdcli hifi-soloist hifi-web
+podman stats --no-stream
+journalctl --user -u hifi-agent -n 50 --no-pager
+```
+
+Do not publish raw inspection output containing secrets. See [troubleshooting](debugging/troubleshooting.md) and [testing](testing/README.md).

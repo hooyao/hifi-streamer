@@ -1,0 +1,1 @@
+{"id":"spotify","interface_version":1,"required":false,"adapter":"soloist","outputs":["pipewire"],"controls":["pause","resume"],"components":["soloist"],"expires_after_days":90}

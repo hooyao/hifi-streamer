@@ -1,0 +1,9 @@
+[Unit]
+Description=M401A test fixture stable audio CPU clock
+Before=user@1001.service
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/m401a-fix-clock
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target

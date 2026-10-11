@@ -1,0 +1,18 @@
+--- a/src/input/plugins/CurlInputPlugin.cxx
++++ b/src/input/plugins/CurlInputPlugin.cxx
+@@ -491,4 +491,3 @@
+-	/* increase CURL's receive buffer size from 16 kB to 512 kB
+-	   (the maximum until CURL 7.88.0) to reduce system call
+-	   overhead */
+-	easy.TrySetOption(CURLOPT_BUFFERSIZE, 512L * 1024L);
++	/* Keep the default receive size: larger buffers retain memory during
++	   pause/resume with the qualified libcurl runtime. */
++	easy.TrySetOption(CURLOPT_BUFFERSIZE, 16L * 1024L);
+--- a/src/input/BufferedInputStream.hxx
++++ b/src/input/BufferedInputStream.hxx
+@@ -17,2 +17,3 @@
+-	// TODO: make configurable
+-	static constexpr offset_type MAX_SIZE = 128 * 1024 * 1024;
++	// Bound implicit file caching independently of the container limit.
++	// Larger inputs remain seekable through the underlying HTTP stream.
++	static constexpr offset_type MAX_SIZE = 16 * 1024 * 1024;

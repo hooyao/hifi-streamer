@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--fault', choices=['mpd', 'start-limit', 'route', 'player', 'session'], default='mpd')
     parser.add_argument('--automatic-only', action='store_true')
     parser.add_argument('--observe-usb', action='store_true')
+    parser.add_argument('--wait-ready', action='store_true')
     args = parser.parse_args()
     cookie = ''
     csrf = ''
@@ -69,6 +70,8 @@ def main():
                      output['recovery']['reason'], output['owner'])
             if not rows or rows[-1]['state'] != state:
                 rows.append({'seconds':round(time.monotonic()-started), 'state':state})
+                args.report.parent.mkdir(parents=True, exist_ok=True)
+                args.report.write_text(json.dumps({'passed':False,'transitions':rows},indent=2))
             if state[0] == 'missing':
                 missing = True
                 assert state[2] == 'dac_missing' and output['owner'] is None
@@ -82,6 +85,9 @@ def main():
         raise AssertionError('USB missing-to-ready acceptance did not complete')
     if args.status:
         print(json.dumps(api('status')['output']))
+        return
+    if args.wait_ready:
+        print(json.dumps(wait_ready()))
         return
     if args.retry_only:
         api('recovery/retry', {})

@@ -67,6 +67,10 @@ def main():
         print(json.dumps(wait_ready()))
         return
     initial = wait_ready()
+    if args.automatic_only:
+        history = json.loads((Path.home()/'.config/hifi-streamer/state/recovery.json').read_text())
+        if sum(time.time()-t < 600 for t in history['attempts']) >= 3:
+            raise AssertionError('automatic budget unavailable before fault injection')
     started = time.time()
     service = {'mpd':'hifi-mpd', 'route':'wireplumber', 'player':'hifi-soloist', 'session':'wireplumber'}[args.fault]
     subprocess.run(['systemctl','--user','stop',service],check=True)

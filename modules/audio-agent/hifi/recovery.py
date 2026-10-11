@@ -52,7 +52,7 @@ class Recovery:
             hardware = {k: v for k, v in self.hardware.items() if k != 'incarnation'}
             return {'hardware': hardware, 'health': 'ready' if self.phase == 'ready' else 'degraded',
                     'recovery': {'phase': self.phase, 'reason': self.reason,
-                                 'attempts': len(self.attempts), 'retry_available':
+                                 'attempts': sum(self.wall() - t < 600 for t in self.attempts), 'retry_available':
                                  self.hardware['availability'] == 'ready' and not self.busy
                                  and self.wall() - self.last_manual >= 60,
                                  'next_retry_seconds': max(0, round(self.next_retry - self.clock()))}}
@@ -107,6 +107,8 @@ class Recovery:
             elif now - self.last_observation >= 1:
                 self.stable += 1
                 self.last_observation = now
+            if self.hardware['availability'] == 'ready' and self.phase == 'ready':
+                return
             if hardware['availability'] == 'ready' and self.stable >= 3 and self.ready_key != key:
                 if not self.boot_checked:
                     self.boot_checked = True
@@ -121,7 +123,8 @@ class Recovery:
         token = self.generation
         try:
             self.runtime.adapters['dlna'].snapshot()
-            self.runtime.hardware.sink()
+            if self.runtime.adapters['spotify'].configured():
+                self.runtime.hardware.sink()
             if token != self.generation or self.hardware['availability'] != 'ready':
                 return
             self.ready_key, self.phase, self.reason = self.key, 'ready', None
@@ -144,6 +147,8 @@ class Recovery:
             self.attempts = [t for t in self.attempts if self.wall() - t < 600]
             if len(self.attempts) >= 3 and not self.manual:
                 self.phase, self.reason = 'failed', 'recovery_exhausted'
+                self.runtime.core.owner = None
+                self.runtime.core.state = 'error'
                 return
             self.busy = True
             self.phase, self.reason = 'recovering', reason or self.pending_fault
@@ -407,7 +412,7 @@ class Recovery:
                 self.runtime.hardware.sink()
                 route_missing = False
             except Exception:
-                route_missing = True
+                route_missing = self.runtime.adapters['spotify'].configured()
             spotify = snapshots.get('spotify', {})
             optional_unreachable = (spotify.get('health') == 'unreachable' and
                                     self.runtime.adapters['spotify'].configured() and not self.optional_blocked)

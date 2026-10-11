@@ -110,7 +110,7 @@ class Runtime:
                 except Exception:
                     snapshot = {'running':False, 'authenticated':False, 'active':False, 'playback':'unknown', 'health':'unreachable'}
                     if name == 'spotify' and self.recovery.optional_blocked:
-                        snapshot.update(health='expired', error='Soloist binary expired')
+                        snapshot.update(health='unavailable', error='Soloist cannot start or respond; inspect diagnostics')
                 self.snapshots[name] = snapshot
                 self.snapshots[name]['observed_at'] = time.time()
             if self.recovery.phase != 'ready':

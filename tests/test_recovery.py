@@ -216,6 +216,11 @@ class Tests(unittest.TestCase):
                 for _ in range(3):
                     recovery.playback_health({'spotify':{'health':'unconfigured'}})
                     self.now += 5
+                schedule.assert_not_called()
+                runtime.adapters['spotify'].configured.return_value = True
+                for _ in range(3):
+                    recovery.playback_health({'spotify':{'health':'healthy'}})
+                    self.now += 5
                 schedule.assert_called_once_with('route_missing')
 
     def test_configuration_invalidation_and_stale_playback_baseline(self):
@@ -248,7 +253,8 @@ class Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             runtime, recovery = self.fixture(directory)
             recovery.hardware = self.hardware
-            runtime.adapters = {'dlna': Mock()}
+            runtime.adapters = {'dlna': Mock(), 'spotify':Mock()}
+            runtime.adapters['spotify'].configured.return_value = True
             recovery.attempts = [998, 999, 1000]
             recovery.bootstrap()
             self.assertEqual(recovery.phase, 'ready')

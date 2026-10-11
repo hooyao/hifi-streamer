@@ -107,8 +107,6 @@ class Recovery:
             elif now - self.last_observation >= 1:
                 self.stable += 1
                 self.last_observation = now
-            if self.hardware['availability'] == 'ready' and self.phase == 'ready':
-                return
             if hardware['availability'] == 'ready' and self.stable >= 3 and self.ready_key != key:
                 if not self.boot_checked:
                     self.boot_checked = True

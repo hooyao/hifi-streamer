@@ -12,6 +12,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / 'modules/audio-agent'))
 from hifi.config import Config, atomic_json
 from hifi.devices import discover
+from hifi.service_lock import maintenance_lock
 
 HOME = Path.home()
 CONFIG = HOME / '.config/hifi-streamer'
@@ -70,7 +71,10 @@ def images():
     return result
 
 
-def apply(only=None):
+def apply(only=None, maintenance_held=False):
+    if not maintenance_held:
+        with maintenance_lock(CONFIG):
+            return apply(only, maintenance_held=True)
     config = Config(CONFIG)
     refs = images()
     selected = next((d for d in discover() if d['id'] == config.data['dac']), None)
@@ -128,9 +132,10 @@ openhome = 1
                      '-v',f'{DATA}/soloist/data:/data/.local/share/soloist:rw','--tmpfs','/data/.cache/soloist:rw,size=128m,mode=1777',refs['soloist']],256,'pipewire-pulse.service')
     run('systemctl','--user','daemon-reload')
     if only is None:
+        run('systemctl','--user','reset-failed','hifi-mpd','hifi-upmpdcli')
         run('systemctl','--user','enable','--now','hifi-mpd','hifi-upmpdcli')
     if config.data['sources']['spotify']['enabled'] and config.has_key():
-        run('systemctl','--user','enable','--now','hifi-soloist')
+        subprocess.run(['systemctl','--user','enable','--now','hifi-soloist'], check=False)
     else:
         run('systemctl','--user','disable','hifi-soloist')
 
@@ -139,9 +144,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=['apply','record-images'])
     parser.add_argument('--only',choices=['soloist'])
+    parser.add_argument('--maintenance-held', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.action == 'apply':
-        apply(args.only)
+        apply(args.only, args.maintenance_held)
     else:
         refs = {name:'sha256:' + subprocess.check_output(['podman','image','inspect',f'localhost/hifi-{name}:dev','--format','{{.Id}}'],text=True).strip().removeprefix('sha256:') for name in ('mpd','upmpdcli','soloist','web')}
         atomic_json(CONFIG / 'images.json', refs)

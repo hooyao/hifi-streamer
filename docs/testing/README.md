@@ -14,6 +14,8 @@ Unit tests cover configuration validation, credentials redaction, HTTP auth/CSRF
 
 ## Hardware integration
 
+See [automatic audio recovery](../debugging/audio-recovery.md) for output-health states and bounded repair behavior.
+
 Run as the service account on a configured host. Hardware tests change playback; use low DAC/amplifier volume and avoid other controllers during exclusive tests.
 
 ```sh

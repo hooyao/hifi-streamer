@@ -79,3 +79,28 @@ class Hardware:
         except Exception:
             # Stop optional player if its control/output cannot be safely released.
             subprocess.run(['systemctl', '--user', 'stop', 'hifi-soloist'], capture_output=True, timeout=15)
+
+    def volume_snapshot(self):
+        target = self.sink()
+        sink = next(s for s in self.items('sinks') if s['name'] == target)
+        return {'id': self.selected()['id'], 'channels':
+                [v['value'] for v in sink['volume'].values()], 'mute': sink['mute']}
+
+    def restore_volume(self, saved):
+        if saved and saved['id'] == self.selected()['id']:
+            run('pactl', 'set-sink-volume', self.sink(), *map(str, saved['channels']))
+            run('pactl', 'set-sink-mute', self.sink(), '1' if saved['mute'] else '0')
+
+    def output_running(self, owner):
+        dac = self.selected()
+        path = Path(f"/proc/asound/card{dac['card']}/pcm{dac['pcm']}p/sub0/status")
+        if not path.exists() or 'state: RUNNING' not in path.read_text():
+            # Some qualified hosts expose stream feedback but omit PCM status.
+            stream = Path(f"/proc/asound/card{dac['card']}/stream0")
+            if not stream.exists() or 'Status: Running' not in stream.read_text():
+                return False
+        if owner == 'spotify':
+            sink = next(s for s in self.items('sinks') if s['name'] == self.sink())
+            return any(s.get('properties', {}).get('application.process.binary') == 'soloist'
+                       and s.get('sink') == sink['index'] for s in self.items('sink-inputs'))
+        return True

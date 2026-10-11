@@ -1,0 +1,186 @@
+"""Exercise recovery state, persistence, cancellation and hardware observations."""
+import sys
+import tempfile
+import threading
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'modules/audio-agent'))
+from hifi.devices import observe
+from hifi.recovery import Recovery, Cancelled
+from hifi.service_lock import maintenance_lock
+
+
+class Tests(unittest.TestCase):
+    def fixture(self, directory):
+        self.now = 1000
+        self.hardware = {'availability': 'ready', 'reason': None,
+                         'device': {'card': 1}, 'incarnation': ('usb', 1)}
+        runtime = SimpleNamespace(config=SimpleNamespace(directory=Path(directory), data={'dac': 'dac'}),
+                                  core=SimpleNamespace(owner='spotify', state='active', last_switch=0),
+                                  previous={'spotify': True}, adapters={}, hardware=Mock())
+        recovery = Recovery(runtime, clock=lambda: self.now, wall=lambda: self.now,
+                            observer=lambda _: self.hardware)
+        return runtime, recovery
+
+    def test_observation_states_and_same_card_generation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime, recovery = self.fixture(directory)
+            with patch.object(recovery, 'schedule'), patch.object(recovery, 'quiesce'):
+                self.hardware = {'availability': 'missing', 'reason': 'dac_missing', 'device': None}
+                recovery.observe()
+                self.assertIsNone(runtime.core.owner)
+                self.assertEqual(recovery.status()['recovery']['reason'], 'dac_missing')
+                recovery.schedule.assert_not_called()
+                self.hardware = {'availability': 'ready', 'reason': None,
+                                 'device': {'card': 1}, 'incarnation': ('usb', 1)}
+                for _ in range(3):
+                    recovery.observe()
+                    self.now += 1
+                recovery.schedule.assert_called_once()
+                generation = recovery.generation
+                self.hardware['incarnation'] = ('usb', 2)
+                recovery.observe()
+                self.assertGreater(recovery.generation, generation)
+                with self.assertRaises(Cancelled):
+                    recovery.check(generation, self.now+10)
+
+    def test_persistent_budget_and_rate_limited_retry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime, recovery = self.fixture(directory)
+            recovery.attempts = [998, 999, 1000]
+            recovery.save()
+            second = Recovery(runtime, clock=lambda: self.now, wall=lambda: self.now)
+            second.hardware = self.hardware
+            second.schedule()
+            self.assertEqual(second.reason, 'recovery_exhausted')
+            second.retry()
+            with self.assertRaises(ValueError):
+                second.retry()
+            third = Recovery(runtime, clock=lambda: self.now, wall=lambda: self.now)
+            third.hardware = self.hardware
+            with self.assertRaises(ValueError):
+                third.retry()
+            third.hardware = {'availability': 'missing'}
+            self.now += 61
+            with self.assertRaises(ValueError):
+                third.retry()
+
+    def test_status_not_blocked_by_repair_and_lock_contention(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, recovery = self.fixture(directory)
+            recovery.hardware = self.hardware
+            with maintenance_lock(directory):
+                recovery.repair(0)
+            self.assertEqual(recovery.reason, 'maintenance_busy')
+            self.assertEqual(recovery.attempts, [])
+            gate = threading.Event()
+            worker = threading.Thread(target=lambda: gate.wait(2))
+            worker.start()
+            self.assertEqual(recovery.status()['hardware']['availability'], 'ready')
+            gate.set()
+            worker.join()
+
+    def test_stall_grace_silence_and_source_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime, recovery = self.fixture(directory)
+            recovery.phase = 'ready'
+            recovery.next_service_check = self.now + 100
+            runtime.hardware.output_running.return_value = True
+            playing = {'spotify': {'playback': 'playing'}}
+            with patch.object(recovery, 'schedule'):
+                recovery.playback_health(playing)
+                recovery.schedule.assert_not_called()
+                runtime.hardware.output_running.return_value = False
+                recovery.playback_health({'spotify': {'playback': 'playing', 'error': 'decoder'}})
+                recovery.schedule.assert_not_called()
+                runtime.core.last_switch = self.now
+                recovery.playback_health(playing)
+                self.now += 11
+                for _ in range(3):
+                    recovery.playback_health(playing)
+                recovery.schedule.assert_called_once_with('output_stalled')
+
+    def test_usb_partial_missing_unknown_and_endpoint_incarnation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sound, usb, nodes = (root / name for name in ('sound', 'usb', 'nodes'))
+            for path in (sound, usb, nodes):
+                path.mkdir()
+            self.assertEqual(observe(None, sound, usb, nodes)['availability'], 'unconfigured')
+            self.assertEqual(observe('a:b:serial', sound, usb, nodes)['availability'], 'missing')
+            device = usb / '1-1'
+            device.mkdir()
+            for name, value in {'idVendor':'a', 'idProduct':'b', 'serial':'serial',
+                                'devnum':'2', 'product':'DAC'}.items():
+                (device / name).write_text(value)
+            card = sound / 'card1'
+            card.mkdir()
+            (card / 'device').symlink_to(device, target_is_directory=True)
+            (card / 'id').write_text('DAC')
+            self.assertEqual(observe('a:b:serial', sound, usb, nodes)['availability'], 'enumerating')
+            for name in ('pcmC1D0p', 'controlC1'):
+                (nodes / name).touch()
+            first = observe('a:b:serial', sound, usb, nodes)
+            self.assertEqual(first['availability'], 'ready')
+            (device / 'devnum').write_text('3')
+            self.assertNotEqual(first['incarnation'], observe('a:b:serial', sound, usb, nodes)['incarnation'])
+            self.assertEqual(observe('a:b:serial', sound, root / 'absent', nodes)['availability'], 'unknown')
+
+    def test_narrow_repair_paused_completion_and_cancellation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime, recovery = self.fixture(directory)
+            recovery.hardware = self.hardware
+            recovery.key = ('dac', 'ready', ('usb', 1))
+            runtime.repo = Path(directory)
+            runtime.adapters = {'dlna': Mock(), 'spotify': Mock()}
+            runtime.adapters['spotify'].configured.return_value = False
+            runtime.renew_adapters = Mock()
+            recovery.had_loss = True
+            with patch.object(recovery, 'command') as command, patch.object(recovery, 'route'):
+                recovery.repair(0)
+            self.assertEqual(recovery.phase, 'ready')
+            self.assertIsNone(runtime.core.owner)
+            self.assertEqual(runtime.previous, {})
+            self.assertTrue(any('apply' in call.args for call in command.call_args_list))
+            runtime.adapters['spotify'].command.assert_not_called()
+            before = len(recovery.attempts)
+            recovery.hardware = {'availability': 'missing'}
+            recovery.repair(0)
+            self.assertEqual(len(recovery.attempts), before)
+
+    def test_full_session_once_and_volume_preserved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime, recovery = self.fixture(directory)
+            recovery.hardware = self.hardware
+            runtime.adapters = {'dlna': Mock(), 'spotify': Mock()}
+            runtime.adapters['spotify'].configured.return_value = False
+            runtime.renew_adapters = Mock()
+            saved = {'id':'dac', 'channels':[123, 123], 'mute':True}
+            runtime.hardware.volume_snapshot.return_value = saved
+            with patch.object(recovery, 'services'), patch.object(recovery, 'route'):
+                recovery.full_session(0, self.now+120)
+                with self.assertRaises(RuntimeError):
+                    recovery.full_session(0, self.now+120)
+            runtime.hardware.restore_volume.assert_called_once_with(saved)
+
+    def test_runtime_status_ignores_control_lock(self):
+        from hifi.runtime import Runtime
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Runtime(Path(__file__).resolve().parents[1], directory)
+            acquired, release = threading.Event(), threading.Event()
+            def hold():
+                with runtime.lock:
+                    acquired.set()
+                    release.wait(2)
+            thread = threading.Thread(target=hold)
+            thread.start()
+            acquired.wait(1)
+            try:
+                with patch.object(runtime, 'devices', return_value=[]):
+                    self.assertEqual(runtime.status()['output']['hardware']['availability'], 'unknown')
+            finally:
+                release.set()
+                thread.join()

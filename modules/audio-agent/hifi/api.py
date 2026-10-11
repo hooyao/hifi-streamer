@@ -129,6 +129,13 @@ def handler(runtime):
                     return self.reply(400, {'error':str(error)})
                 except Exception:
                     return self.reply(503, {'error':'configuration saved; deployment failed, inspect diagnostics'})
+            if self.path == '/api/recovery/retry':
+                if data:
+                    return self.reply(400, {'error': 'retry accepts no arguments'})
+                try:
+                    return self.reply(202, runtime.recovery.retry())
+                except ValueError as error:
+                    return self.reply(409, {'error': str(error)})
             if self.path == '/api/update':
                 component = data.get('component')
                 if component not in ('soloist','web') or data.get('action') not in ('update','rollback'):

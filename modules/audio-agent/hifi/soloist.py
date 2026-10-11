@@ -1,4 +1,5 @@
 import uuid
+import time
 from .websocket import Client
 
 
@@ -15,7 +16,10 @@ class Soloist:
         try:
             self.client.send({'type':'command', 'command':method, **fields})
             expected = {'get_auth_state':'auth_state', 'get_state':'playback_state'}.get(method, 'command_result')
+            deadline = time.monotonic() + 3
             for _ in range(32):
+                if time.monotonic() > deadline:
+                    raise TimeoutError('Soloist response deadline')
                 response = self.client.receive()
                 if response.get('type') == 'error':
                     raise RuntimeError('Soloist rejected control')

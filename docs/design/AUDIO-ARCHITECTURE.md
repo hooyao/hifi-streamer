@@ -36,6 +36,8 @@ DLNA handoff moves Spotify to standby, suspends the hardware sink and enables MP
 
 Unplugging revokes output. Reconnection regenerates mappings and may rebuild containers. Playback stays paused by default.
 
+The [recovery supervisor](../debugging/audio-recovery.md) observes hardware independently of slow player control, publishes output-health errors and repairs services/routes within a persistent retry budget. Deployment, updates and recovery share a maintenance lock; status queries remain responsive while services are repaired.
+
 ## Networks and storage
 
 Media containers use host networking for discovery. MPD and Soloist control endpoints bind to loopback. Web listens on 8080; sessions, Origin validation and CSRF protect state changes.

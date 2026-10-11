@@ -19,6 +19,7 @@ sys.path.insert(0,str(REPO/'modules/audio-agent'))
 from hifi.config import atomic_json
 from hifi.maintenance import transaction
 from hifi.websocket import Client
+from hifi.service_lock import maintenance_lock
 
 CONFIG = Path.home()/'.config/hifi-streamer'
 
@@ -141,4 +142,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    with maintenance_lock(CONFIG):
+        main()

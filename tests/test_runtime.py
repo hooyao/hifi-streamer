@@ -14,6 +14,8 @@ class Adapter:
         self.acquired = False
     def snapshot(self):
         return {'playback':self.state,'active':True,'health':'healthy'}
+    def configured(self):
+        return False
     def release(self):
         self.state = 'paused'
     def acquire(self, generation):
@@ -31,6 +33,7 @@ class Tests(unittest.TestCase):
     def test_simultaneous_priority_and_loss(self):
         with tempfile.TemporaryDirectory() as directory:
             runtime = Runtime(Path(__file__).resolve().parents[1],directory)
+            runtime.recovery.phase = 'ready'
             adapters = {'dlna':Adapter('playing'),'spotify':Adapter('playing')}
             runtime.adapters = adapters
             runtime.core.adapters = adapters
@@ -50,6 +53,7 @@ class Tests(unittest.TestCase):
     def test_failed_optional_snapshot_is_unknown(self):
         with tempfile.TemporaryDirectory() as directory:
             runtime = Runtime(Path(__file__).resolve().parents[1],directory)
+            runtime.recovery.phase = 'ready'
             adapters = {'dlna':Adapter('stopped'),'spotify':Adapter('stopped')}
             runtime.adapters = adapters
             with patch.object(runtime,'selected',return_value=None), patch.object(adapters['spotify'],'snapshot',side_effect=RuntimeError()):

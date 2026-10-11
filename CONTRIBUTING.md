@@ -45,11 +45,9 @@ Implement the tasks, add meaningful tests and update affected documentation. Mar
 ## Documentation and comments
 
 - Code comments and docstrings are English.
-- English Markdown uses the default filename; the Chinese edition uses `.zh-CN.md`.
-- OpenSpec delta specs are the exception: keep only canonical `spec.md` under `specs/`, and place its Chinese edition under `translations/zh-CN/specs/` in the change directory so CLI validation can distinguish translations from deltas.
-- Every maintained document starts with reciprocal language links.
+- Documentation outside `openspec/` uses an English default filename and a Chinese `.zh-CN.md` edition with reciprocal language links.
 - Update both editions together, including examples and capability boundaries.
-- OpenSpec structural headings and `SHALL/MUST` remain English in both editions.
+- Everything under `openspec/`, including guides, proposals, designs, tasks, specs and configuration, must be English only. Do not create Chinese editions, translation directories or language-switch links there.
 - `AGENTS.md` is the concise entry point to module ownership, source files and contributor guidance. Detailed operational instructions belong in documentation.
 - Document reproducible behavior and support boundaries, not chat events.
 

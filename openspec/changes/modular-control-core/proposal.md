@@ -1,7 +1,5 @@
 # Proposal
 
-English | [简体中文](proposal.zh-CN.md)
-
 ## Why
 
 Provide a shared source contract and lightweight control plane so new services can reuse DAC discovery and ownership.

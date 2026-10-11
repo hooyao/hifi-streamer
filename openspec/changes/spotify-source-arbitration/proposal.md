@@ -1,7 +1,5 @@
 # Proposal
 
-English | [简体中文](proposal.zh-CN.md)
-
 ## Why
 
 Integrate optional Soloist playback with a required DLNA source while keeping DAC arbitration extensible beyond two sources.

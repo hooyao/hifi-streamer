@@ -1,7 +1,5 @@
 # Tasks
 
-English | [简体中文](tasks.zh-CN.md)
-
 ## 1. Implementation and verification
 
 - [x] 1.1 Provide MPD/upmpdcli images and deployment configuration; verify version startup and loopback MPD listening.

@@ -45,11 +45,9 @@ openspec instructions apply --change <change-name>
 ## 文档与注释
 
 - 代码注释和 docstring 使用英文。
-- 英文 Markdown 使用默认文件名，中文文件使用 `.zh-CN.md`。
-- OpenSpec delta规格例外：`specs/` 只保存主文件 `spec.md`，中文版本放在该change的 `translations/zh-CN/specs/`，让CLI区分翻译与delta。
-- 每份维护文档顶部都有双向语言切换链接。
+- `openspec/` 以外的文档，英文使用默认文件名，中文使用 `.zh-CN.md`，顶部包含双向语言切换链接。
 - 两版同时更新，包括示例与支持范围。
-- 两版 OpenSpec 的结构标题和 `SHALL/MUST` 均保持英文。
+- `openspec/` 内的指南、提案、设计、任务、规格及配置全部只能用英文；禁止中文版、翻译目录及语言切换链接。
 - `AGENTS.md` 是模块职责、源码入口和贡献指引的简明入口，详细操作说明放在正式文档。
 - 记录可复现的行为与支持边界，不记录聊天事件。
 

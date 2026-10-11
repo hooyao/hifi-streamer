@@ -78,7 +78,7 @@ python3 -m unittest discover -s tests -v
 
 使用 OpenSpec 描述行为、实现决策及可验证的验收条件。proposal、规格、实现和 review 流程见[贡献指南](CONTRIBUTING.zh-CN.md)。
 
-代码注释与 docstring 使用英文。维护的文档提供英文和简体中文两版，并包含双向语言切换链接。
+代码注释与 docstring 使用英文。产品及贡献文档提供英文和简体中文两版，并包含双向语言切换链接。OpenSpec 内容全部只用英文。
 
 ## 许可证
 

@@ -1,7 +1,5 @@
 # Spec Delta
 
-English | [简体中文](../../translations/zh-CN/specs/dlna-rendering/spec.md)
-
 ## Purpose
 
 Make DLNA a reliable required source using real discovery and protocol controls with source-rate audio output. This capability defines observable behavior, failure handling and repeatable acceptance criteria for device validation and future extensions.

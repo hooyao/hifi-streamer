@@ -1,7 +1,5 @@
 # Proposal
 
-English | [简体中文](proposal.zh-CN.md)
-
 ## Why
 
 USB protocol failures can remove the DAC, leave MPD in a service start-limit failure, and leave PipeWire/Soloist with unusable routes after the DAC returns. Device rediscovery alone does not restore the complete audio path, so recovery needs observable stages and bounded automatic repair.
@@ -27,4 +25,4 @@ None. No accepted base specs currently exist. This extends the active source-con
 
 ## Impact
 
-Affects host runtime/discovery, output routing, adapter lifecycle, deployment/update coordination, status API/web UI, tests and bilingual operating documentation. Uses existing Python/systemd/Podman/PipeWire dependencies. Automatic kernel/USB-controller resets, host reboots, firmware changes and repair of faulty cables or expired media URLs are outside scope.
+Affects host runtime/discovery, output routing, adapter lifecycle, deployment/update coordination, status API/web UI, tests and bilingual product documentation. OpenSpec artifacts remain English only. Uses existing Python/systemd/Podman/PipeWire dependencies. Automatic kernel/USB-controller resets, host reboots, firmware changes and repair of faulty cables or expired media URLs are outside scope.

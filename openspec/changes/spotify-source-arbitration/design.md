@@ -1,7 +1,5 @@
 # Design
 
-English | [简体中文](design.zh-CN.md)
-
 ## Context
 
 See proposal.md and the architecture/source contract. The target is a systemd Linux host with Python 3.11, rootless Podman and USB audio.

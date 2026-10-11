@@ -1,7 +1,5 @@
 # Spec Delta
 
-English | [简体中文](../../translations/zh-CN/specs/audio-recovery/spec.md)
-
 ## Purpose
 
 Restore usable audio infrastructure after selected-DAC or host-session faults, with truthful control-plane errors, exclusive output ownership and bounded automatic repair.

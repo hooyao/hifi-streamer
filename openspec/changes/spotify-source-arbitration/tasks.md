@@ -1,7 +1,5 @@
 # Tasks
 
-English | [简体中文](tasks.zh-CN.md)
-
 ## 1. Implementation and verification
 
 - [x] 1.1 Implement the Soloist image, state adapter and secret injection; verify version startup, unconfigured state and WebSocket protocol tests.

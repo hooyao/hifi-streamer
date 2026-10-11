@@ -1,7 +1,5 @@
 # Working with OpenSpec
 
-English | [简体中文](README.zh-CN.md)
-
 OpenSpec defines behavior changes and acceptance criteria. See [Contributing](../CONTRIBUTING.md) for the end-to-end workflow.
 
 - `specs/`: accepted capability specifications.
@@ -15,6 +13,4 @@ openspec validate --all --strict --no-interactive
 openspec instructions apply --change <name>
 ```
 
-English artifacts are canonical; Chinese editions use `.zh-CN.md`, matching structural headings and reciprocal language links. Keep their requirements and task state synchronized.
-
-For delta specs, keep translations in `translations/zh-CN/specs/<capability>/spec.md` within the change instead of adding a second file to its parsed `specs/` tree.
+All content under `openspec/` must be English only, including guides, proposals, designs, tasks, specifications and configuration. Do not add translated editions or language-switch links. Product and contributor documentation outside this directory remains bilingual.

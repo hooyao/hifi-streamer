@@ -1,7 +1,5 @@
 # Design
 
-English | [简体中文](design.zh-CN.md)
-
 ## Context
 
 See [proposal](proposal.md) and [requirements](specs/audio-recovery/spec.md). Runtime currently uses sound-card presence/card number, synchronously runs deployment under its status lock, and equates adapter playback with output health. Startup without a DAC can be treated differently from hotplug; same-number device replacement can retain stale mappings. Hardware routing suppresses release errors and may stop Soloist, but does not supervise its later recovery. Restarting WirePlumber alone can recreate a sink while the player's stream remains unlinked; a complete host session recreation may be necessary. USB `-71` is evidence of protocol failure, not proof of a specific cable/controller defect.

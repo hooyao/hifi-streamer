@@ -20,5 +20,5 @@
 ## 4. Device acceptance
 
 - [x] 4.1 Add and run host fault injection for stale routes, failed/start-limited MPD and unavailable player controls; require automatic repair without manual service restarts, paused readiness and both playback paths; keep redacted reports in ignored/CI artifacts.
-- [ ] 4.2 Qualify unplug/replug, DAC power cycle, unchanged/changed card enumeration and absent-DAC cold boot; require visible control-plane errors, bounded attempts, no unintended sound, subsequent PCM/FLAC/DoP and Spotify handoff; obtain manual listening confirmation and record support boundaries in bilingual test documentation.
-- [ ] 4.3 Run Linux unit tests, strict OpenSpec/document checks and relevant image/web checks; submit implementation through PR and confirm required CI passes before accepting the change.
+- [x] 4.2 Qualify unplug/replug, DAC power cycle, unchanged/changed card enumeration and absent-DAC cold boot; require visible control-plane errors, bounded attempts, no unintended sound, subsequent PCM/FLAC/DoP and Spotify handoff; obtain manual listening confirmation and record support boundaries in bilingual test documentation.
+- [x] 4.3 Run Linux unit tests, strict OpenSpec/document checks and relevant image/web checks; submit implementation through PR and confirm required CI passes before accepting the change.

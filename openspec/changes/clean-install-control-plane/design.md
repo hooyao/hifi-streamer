@@ -12,7 +12,7 @@ The rootless service generator requires four immutable image references and retu
 
 ## Decisions
 
-Generate the bounded web unit and enable it before hardware-dependent service generation. Keep the existing shared maintenance lock and stop affected players before the missing-device return. This avoids a second deployment command and makes the existing apply operation sufficient for initial setup.
+Generate the bounded web unit and enable it before hardware discovery or hardware-dependent service generation. Treat transient sysfs read/parse failures as no usable selection. Keep the existing shared maintenance lock; without selected hardware, stop every player and disable existing audio units to prevent stale device mappings from starting at boot, including during a Spotify-only apply. Recovery regenerates and enables them when selected hardware returns. This avoids a second deployment command and makes the existing apply operation sufficient for initial setup.
 
 Compare the generated web unit to its previous content. If it changed and web is already active, explicitly restart it after daemon-reload; enable --now alone leaves the old container running. Unchanged units retain the web process during ordinary DAC/source configuration.
 
@@ -20,7 +20,7 @@ Retain the existing recovery supervisor for later hardware availability. Do not 
 
 Treat failed-state reset as best effort because a newly generated unit may not yet be loaded by systemd. The subsequent checked enable/start command determines whether service startup actually succeeded; existing failed units still receive the reset.
 
-Run read-only account checks before install.sh writes files. Validate local subordinate allocations and their overlap, dependency executables, and user systemd connectivity; verify Podman can initialize the rootless engine. Never automatically reassign ranges belonging to another account. Registry visibility and OCI archive import are explicit deployment prerequisites. Preserve source and host volumes separately; do not silently increase gain on existing installations.
+Run read-only account checks before install.sh writes files. Validate local subordinate allocations and their overlap, dependency executables, and user systemd connectivity; require Podman info to succeed and explicitly report a rootless engine. Never automatically reassign ranges belonging to another account. Registry visibility and OCI archive import are explicit deployment prerequisites. Preserve source and host volumes separately; do not silently increase gain on existing installations.
 
 During bootstrap, retry transient socket connection failures under the existing 20-second generation/deadline check. A finite loop also bounds observations under a stationary test clock. This waits for asynchronous container initialization without resetting the persistent disruption budget; invalid protocol responses and permanent errors still enter normal bounded recovery.
 

@@ -51,7 +51,7 @@ python3 deploy/manage.py record-images
 python3 deploy/manage.py apply
 ```
 
-打开 `http://<device-address>:8080`，使用私有配置中生成的管理密码登录，在 DAC 可用后选择设备。尚未选择时报告 `dac_unconfigured`；已选设备缺失时报告 `dac_missing`。选定可用硬件前，音频服务保持停止。网页服务已启用，重启后仍会启动。
+打开 `http://<device-address>:8080`，使用私有配置中生成的管理密码登录，在 DAC 可用后选择设备。尚未选择时报告 `dac_unconfigured`；已选设备缺失时报告 `dac_missing`。部署先启动网页再发现硬件，sysfs 暂时读取失败也不会阻止网页启动。没有可用设备时，停止全部音频服务并禁用已有音频单元，避免重启后使用过期设备映射。选定硬件重新可用后，恢复流程重新生成并启用音频服务。网页服务保持启用，重启后仍会启动。
 
 也可以通过命令行选择稳定 DAC ID：
 

@@ -51,7 +51,7 @@ After recording images, bootstrap the web control plane even if the DAC is not c
 python3 deploy/manage.py apply
 ```
 
-Open `http://<device-address>:8080`, log in using the private generated admin password, and select the DAC when it is available. Unset selection reports `dac_unconfigured`; an absent selected DAC reports `dac_missing`. Audio services remain stopped until usable hardware is selected. The web service is enabled across reboots.
+Open `http://<device-address>:8080`, log in using the private generated admin password, and select the DAC when it is available. Unset selection reports `dac_unconfigured`; an absent selected DAC reports `dac_missing`. Deployment starts web before hardware discovery, including transient sysfs failures. With no usable selection, it stops all audio services and disables existing audio units to prevent stale device mappings from starting at boot. Recovery regenerates and enables audio services when selected hardware becomes available. The web service remains enabled across reboots.
 
 For command-line DAC selection instead:
 

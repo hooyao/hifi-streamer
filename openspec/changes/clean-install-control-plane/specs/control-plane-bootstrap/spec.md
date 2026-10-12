@@ -23,6 +23,11 @@ After validated images are recorded and deployment is applied, the system SHALL 
 - **WHEN** an operator selects an available DAC through the authenticated configuration page
 - **THEN** the audio services are generated and output becomes ready without requiring a manual web service restart
 
+#### Scenario: Transient discovery failure with previously enabled audio
+- **WHEN** deployment is applied while sysfs discovery fails or a previously selected DAC is absent
+- **THEN** web is enabled before discovery, all audio services are stopped, and existing audio units are disabled so stale device mappings cannot start at the next user-manager boot
+- **AND** deployment enables regenerated audio units when the selected hardware becomes available
+
 #### Scenario: Apply a different verified web image
 - **WHEN** an operator applies deployment references containing a different verified web image
 - **THEN** the active web service is recreated with that image, while an unchanged deployment does not restart web
@@ -38,6 +43,10 @@ The account installer SHALL reject root execution, missing rootless dependencies
 #### Scenario: Valid dedicated account
 - **WHEN** dependencies, subordinate ranges and the user systemd manager are available
 - **THEN** account installation proceeds without replacing existing credentials or source sessions
+
+#### Scenario: Rootful engine answers successfully
+- **WHEN** Podman info exits successfully but its rootless field does not report `true`
+- **THEN** preflight rejects the selected engine before application files are written and identifies the rootless prerequisite
 
 ### Requirement: Bounded cold-start control readiness
 

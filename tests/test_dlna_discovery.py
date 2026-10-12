@@ -1,4 +1,5 @@
 """Discovery tolerates stale responders and bounded first-start advertising delay."""
+import io
 import unittest
 from unittest.mock import patch
 import dlna_smoke
@@ -16,6 +17,21 @@ class Socket:
 
 
 class DiscoveryTests(unittest.TestCase):
+    def test_malformed_location_does_not_hide_valid_renderer(self):
+        sock = Socket()
+        sock.recv = lambda size: (b'HTTP/1.1 200 OK\r\nLOCATION: http://[broken\r\n'
+                                 b'LOCATION: http://fixture/description.xml\r\n')
+        description = b'''<root xmlns="urn:schemas-upnp-org:device-1-0"><device>
+            <friendlyName>HiFi Streamer</friendlyName><serviceList><service>
+            <serviceType>urn:schemas-upnp-org:service:AVTransport:1</serviceType>
+            <controlURL>/control</controlURL></service></serviceList></device></root>'''
+        with patch.object(dlna_smoke.socket, 'socket', return_value=sock), \
+             patch.object(dlna_smoke.time, 'monotonic', side_effect=[0, 1, 6]), \
+             patch.object(dlna_smoke.HTTP, 'open', side_effect=[
+                 ValueError('Invalid IPv6 URL'), io.BytesIO(description)]) as open_url:
+            self.assertEqual(dlna_smoke.discover('HiFi Streamer'), 'http://fixture/control')
+        self.assertEqual(open_url.call_count, 2)
+
     def test_unreachable_description_is_not_an_uncaught_network_error(self):
         with patch.object(dlna_smoke.socket, 'socket', return_value=Socket()), \
              patch.object(dlna_smoke.time, 'monotonic', side_effect=[0,1,6]), \

@@ -49,17 +49,18 @@ def check():
     account = pwd.getpwuid(os.getuid()).pw_name
     for path in ('/etc/subuid', '/etc/subgid'):
         check_ranges(path, account, os.getuid())
-    for command, message in (
+    for command, message, expected in (
         (['systemctl','--user','show','default.target','-p','LoadState'],
-         'user systemd is unavailable; log in through SSH as the service account and enable linger'),
+         'user systemd is unavailable; log in through SSH as the service account and enable linger', None),
         (['podman','info','--format','{{.Host.Security.Rootless}}'],
-         'rootless Podman initialization failed; verify subordinate IDs, crun and current login groups')):
+         'rootless Podman initialization failed; verify subordinate IDs, crun, current login groups '
+         'and that the selected engine is rootless', 'true')):
         try:
-            result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                    timeout=30, check=False)
+            result = subprocess.run(command, stdout=subprocess.PIPE if expected else subprocess.DEVNULL,
+                                    stderr=subprocess.DEVNULL, text=True, timeout=30, check=False)
         except (OSError, subprocess.TimeoutExpired) as error:
             raise ValueError(message) from error
-        if result.returncode:
+        if result.returncode or expected and result.stdout.strip() != expected:
             raise ValueError(message)
 
 

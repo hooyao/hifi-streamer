@@ -43,6 +43,26 @@ def graph_rates(node):
     return {int(rate) for rate in re.findall(rf'R\s+{node}\s+\d+\s+(\d+)',text)}
 
 
+def restore_after_test(child, hardware, saved):
+    """Attempt every cleanup step and restart services even if hardware disappears."""
+    try:
+        try:
+            if child and child.poll() is None:
+                child.terminate()
+                try:
+                    child.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    child.kill()
+                    child.wait(timeout=5)
+        finally:
+            try:
+                hardware.for_direct()
+            finally:
+                hardware.restore_volume(saved)
+    finally:
+        subprocess.run(['systemctl','--user','start','hifi-soloist','hifi-agent'],check=True)
+
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--report',type=Path,required=True)
@@ -56,13 +76,13 @@ def main():
     before=json.loads(history.read_text()).get('attempts',[]) if history.exists() else []
     real=Soloist(None,lambda:True)
     real.command('pause')
-    subprocess.run(['systemctl','--user','stop','hifi-agent','hifi-soloist'],check=True)
     player=Soloist(hardware,lambda:True)
     # Only control intent is synthetic; Pulse PCM, graph and hardware are real.
     player.command=lambda method,**fields: {'logged_in':True} if method=='get_auth_state' else {'status':'playing','is_active':True}
     child=None
     rows=[]
     try:
+        subprocess.run(['systemctl','--user','stop','hifi-agent','hifi-soloist'],check=True)
         hardware.for_direct()
         with tempfile.TemporaryDirectory() as directory:
             for rate in (44100,48000,96000,44100):
@@ -101,11 +121,7 @@ def main():
         assert before==after,'synthetic rate test spent recovery budget'
         atomic_json(args.report,{'passed':True,'synthetic_transport_only':True,'checks':rows,'budget_unchanged':True})
     finally:
-        if child and child.poll() is None:
-            child.terminate();child.wait(timeout=5)
-        hardware.for_direct()
-        hardware.restore_volume(saved)
-        subprocess.run(['systemctl','--user','start','hifi-soloist','hifi-agent'],check=True)
+        restore_after_test(child, hardware, saved)
 
 
 if __name__=='__main__':

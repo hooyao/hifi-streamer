@@ -15,9 +15,9 @@ Agent 独立于播放器轮询观察配置的 DAC。Spotify 或 DLNA 服务存�
 | `service_failed` | 服务修复失败，查看有界诊断。 |
 | `output_stalled` | 宽限后播放音源仍无物理输出，已请求分阶段修复。 |
 | `maintenance_busy` | 更新/配置持有共用维护锁，恢复等待中。 |
-| `recovery_exhausted` | 自动重启预算耗尽，检查原因后认证重试。 |
+| `recovery_exhausted` | 自动重启预算耗尽，检查原因后手动重试。 |
 
-网页持续显示输出错误。认证状态接口包含 `output.hardware`、`output.health` 和 `output.recovery`。硬件缺失撤销输出所有权；软件无法修复未接线、未通电 DAC 或持续 USB 协议故障。
+网页持续显示输出错误。状态接口包含 `output.hardware`、`output.health` 和 `output.recovery`。硬件缺失撤销输出所有权；软件无法修复未接线、未通电 DAC 或持续 USB 协议故障。
 
 ## 修复策略
 

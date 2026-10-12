@@ -46,7 +46,7 @@ sudo sh deploy/host-setup.sh
 
 继续按[安装与配置指南](docs/OPERATIONS.zh-CN.md)准备服务账号、载入不可变镜像、选择 DAC 并启动服务。安装前必须验证镜像仓库访问；成功构建的 OCI 导出产物也可用于初始部署。
 
-部署后访问 `http://<device-address>:8080`，使用设备生成的管理密码，配置 DAC。有 API key 后再启用 Spotify。音源与 DAC 都可能影响音量，听音前应核对两者。
+部署后访问 `http://<device-address>:8080`，直接配置 DAC，有 API key 后再启用 Spotify。当前开发版没有控制平面密码，可访问该地址的局域网客户端均可操作。全新宿主输出和 Soloist 启动音量默认 100%；可在页面调整宿主音量，或由 DAC／功放控制听音音量。DLNA 直出不经过宿主软件增益。
 
 ## 音频路径
 

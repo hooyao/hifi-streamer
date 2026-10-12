@@ -12,7 +12,7 @@ See proposal.md and the architecture/source contract. The target is a systemd Li
 
 ## Decisions
 
-Use a Python 3.11 standard-library host agent and a static web container proxying a private Unix socket. Keep service commands in adapters and load built-in declarations through the registry. Persist configuration atomically and secrets with mode 0600; require login, Origin validation and CSRF for writes. This avoids a large always-on framework.
+Use a Python 3.11 standard-library host agent and a static web container proxying a private Unix socket. Keep service commands in adapters and load built-in declarations through the registry. Persist configuration atomically and secrets with mode 0600; require Origin validation and CSRF for writes; control-plane authentication is deferred. This avoids a large always-on framework.
 
 ## Risks / Trade-offs
 

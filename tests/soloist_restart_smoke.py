@@ -9,7 +9,7 @@ from hifi.config import Config
 from hifi.soloist import Soloist
 
 config = Config(Path.home()/'.config/hifi-streamer')
-expected = config.data['sources']['spotify'].get('initial_volume',40)
+expected = config.data['sources']['spotify'].get('initial_volume',100)
 subprocess.run(['systemctl','--user','restart','hifi-soloist'],check=True)
 for attempt in range(30):
     client = Soloist(None,lambda:True)

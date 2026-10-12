@@ -68,10 +68,9 @@ def main():
             time.sleep(1)
         raise AssertionError('automatic recovery did not finish')
 
-    password = json.loads((Path.home()/'.config/hifi-streamer/admin.json').read_text())['password']
     for attempt in range(30 if args.wait_ready else 1):
         try:
-            api('login', {'password':password})
+            api('status')
             break
         except (OSError, http.client.HTTPException):
             if not args.wait_ready or attempt == 29:

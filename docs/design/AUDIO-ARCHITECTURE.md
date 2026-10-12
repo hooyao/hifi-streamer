@@ -42,7 +42,7 @@ The [recovery supervisor](../debugging/audio-recovery.md) observes hardware inde
 
 ## Networks and storage
 
-Media containers use host networking for discovery. MPD and Soloist control endpoints bind to loopback. Web listens on 8080; sessions, Origin validation and CSRF protect state changes.
+Media containers use host networking for discovery. MPD and Soloist control endpoints bind to loopback. Web listens on 8080; this development release has no password/session authentication. Matching Origin and a process-scoped CSRF token protect state changes. Host-output gain is independent from source startup volume and direct ALSA output; cached selected-sink observations keep status responsive during audio operations.
 
 Configuration/secrets use the service account's private XDG directory. Session data is separate from bounded cache. Inject secrets at runtime, never in images.
 

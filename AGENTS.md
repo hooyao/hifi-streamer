@@ -19,7 +19,7 @@ Read the relevant architecture and source contract before changing a module. Use
 | Source registry | Built-in declarations and interface validation | [Registry](modules/audio-agent/hifi/registry.py), [Declarations](modules/sources/) |
 | DLNA | Required renderer and direct ALSA output | [Declaration](modules/sources/dlna/module.json), [Adapter](modules/audio-agent/hifi/mpd.py), [MPD image](images/mpd/), [upmpdcli image](images/upmpdcli/) |
 | Spotify | Optional Soloist control and Pulse output | [Declaration](modules/sources/spotify/module.json), [Adapter](modules/audio-agent/hifi/soloist.py), [WebSocket](modules/audio-agent/hifi/websocket.py), [Image](images/soloist/) |
-| Configuration and API | Persistent configuration, login and authenticated control | [Configuration](modules/audio-agent/hifi/config.py), [API](modules/audio-agent/hifi/api.py) |
+| Configuration and API | Persistent configuration, output volume and device control | [Configuration](modules/audio-agent/hifi/config.py), [API](modules/audio-agent/hifi/api.py) |
 | Web UI | Device/source configuration and update controls | [UI](modules/web/index.html), [Proxy](modules/web/nginx.conf), [Image](images/web/) |
 | Installation | Host dependencies and rootless service generation | [Host setup](deploy/host-setup.sh), [Account preflight](deploy/preflight.py), [Account setup](deploy/install.sh), [Service generator](deploy/manage.py) |
 | Updates and maintenance | Candidate observation, preflight and rollback | [Transaction](deploy/update.py), [Observation](deploy/check-updates.py), [Maintenance](modules/audio-agent/hifi/maintenance.py) |

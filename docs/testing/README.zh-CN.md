@@ -10,9 +10,11 @@ openspec validate --all --strict --no-interactive
 git diff --check
 ```
 
-单元测试覆盖配置校验、凭据隐藏、HTTP认证/CSRF、模块注册、第三音源仲裁、旧事件、释放失败、热插拔状态、WebSocket帧、日志/缓存上限及更新回滚/预检。
+单元测试覆盖配置校验、凭据隐藏、无密码 HTTP 访问／Origin／CSRF 及宿主音量隔离、模块注册、第三音源仲裁、旧事件、释放失败、热插拔状态、WebSocket帧、日志/缓存上限及更新回滚/预检。
 
 ## 硬件集成
+
+`tests/output_volume_device_smoke.py --report <私有报告路径>` 验证无密码状态访问、全新宿主单位增益初始化、0%／60% 调整、拒绝 101%、agent 重启后保留音量、音源设置独立及恢复原有宿主增益。测试会短暂调整软件音量并重启 agent，请保持硬件低音量。单元测试另行覆盖不可用／过期路由及调整隔离。
 
 输出健康状态及有界修复行为见[自动音频恢复](../debugging/audio-recovery.zh-CN.md)。
 
@@ -46,7 +48,7 @@ MPD重启测试覆盖主动及突然退出、暂停恢复队列和禁用直出�
 python3 tests/clean_install_smoke.py --replace-app-state --dsd --report .local-build/clean-install.json
 ```
 
-验收覆盖空配置、未配置的可选 Spotify、网页认证、已选硬件缺失、重复安装保留凭据、首次 API 选择 DAC、新音频服务加载、网页进程不变及实际 DLNA 格式/控制。报告除了 passed 还必须有 `private_state_restored: true`；状态恢复成功不代表之前失败的测试通过。首次广播使用有界重试，并跳过不可达或过期的设备地址。
+验收覆盖空配置、未配置的可选 Spotify、无密码网页状态、已选硬件缺失、重复安装保留配置、首次 API 选择 DAC、新音频服务加载、网页进程不变及实际 DLNA 格式/控制。报告除了 passed 还必须有 `private_state_restored: true`；状态恢复成功不代表之前失败的测试通过。首次广播使用有界重试，并跳过不可达或过期的设备地址。
 
 ## 解码音源采样率跟随
 

@@ -242,6 +242,18 @@ class Hardware:
         return {'id': self.selected()['id'], 'channels':
                 [v['value'] for v in sink['volume'].values()], 'mute': sink['mute']}
 
+    def volume_status(self):
+        saved = self.volume_snapshot()
+        if not saved['channels']:
+            raise RuntimeError('DAC volume unavailable')
+        return {'percent': round(max(saved['channels']) * 100 / 65536, 1),
+                'mute': saved['mute']}
+
+    def set_volume(self, percent):
+        if type(percent) is not int or not 0 <= percent <= 100:
+            raise ValueError('volume must be an integer from 0 to 100')
+        run('pactl', 'set-sink-volume', self.sink(), f'{percent}%')
+
     def restore_volume(self, saved):
         if saved and saved['id'] == self.selected()['id']:
             run('pactl', 'set-sink-volume', self.sink(), *map(str, saved['channels']))

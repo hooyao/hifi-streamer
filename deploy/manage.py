@@ -145,7 +145,7 @@ openhome = 1
     unit('mpd', ['--device', f"/dev/snd/pcmC{selected['card']}D0p", '--device', f"/dev/snd/controlC{selected['card']}",
                  '-v',f'{CONFIG}/mpd.conf:/etc/mpd.conf:ro','-v',f'{DATA}/mpd:/var/lib/mpd:rw',refs['mpd']],128,'pipewire-pulse.service')
     unit('upmpdcli', ['-v',f'{CONFIG}/upmpdcli.conf:/etc/upmpdcli.conf:ro','-v',f'{DATA}/upmpdcli:/var/cache/upmpdcli:rw',refs['upmpdcli']],96,'hifi-mpd.service')
-    unit('soloist', ['-e','HOME=/data','-e',f"INITIAL_VOLUME={config.data['sources']['spotify'].get('initial_volume',40)}",'-e',f"DEVICE_NAME={config.data['sources']['spotify']['name']}",'-e','PULSE_SERVER=unix:/run/pulse/native',
+    unit('soloist', ['-e','HOME=/data','-e',f"INITIAL_VOLUME={config.data['sources']['spotify'].get('initial_volume',100)}",'-e',f"DEVICE_NAME={config.data['sources']['spotify']['name']}",'-e','PULSE_SERVER=unix:/run/pulse/native',
                      '-v',f'{RUNTIME}/pulse:/run/pulse:ro','-v',f'{CONFIG}/spotify-key:/run/secrets/spotify-key:ro',
                      '-v',f'{DATA}/soloist/data:/data/.local/share/soloist:rw','--tmpfs','/data/.cache/soloist:rw,size=128m,mode=1777',refs['soloist']],256,'pipewire-pulse.service')
     run('systemctl','--user','daemon-reload')

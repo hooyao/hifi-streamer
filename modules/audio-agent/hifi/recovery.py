@@ -151,6 +151,8 @@ class Recovery:
                     self.check(token, deadline)
                     self.route()
                 self.check(token, deadline)
+                self.runtime.initialize_output_volume()
+                self.check(token, deadline)
                 self.runtime.previous = {name: False for name in self.runtime.adapters}
                 self.runtime.blocked_intents = set()
                 self.ready_key, self.phase, self.reason = self.key, 'ready', None
@@ -366,6 +368,8 @@ class Recovery:
                         self.runtime.previous[name] = True
                         self.runtime.blocked_intents.add(name)
                 self.runtime.core.owner, self.runtime.core.state = None, 'idle'
+                self.check(token, deadline)
+                self.runtime.initialize_output_volume()
                 self.check(token, deadline)
                 self.ready_key, self.phase, self.reason = self.key, 'ready', None
                 self.had_loss = False

@@ -51,7 +51,7 @@ After recording images, bootstrap the web control plane even if the DAC is not c
 python3 deploy/manage.py apply
 ```
 
-Open `http://<device-address>:8080`, log in using the private generated admin password, and select the DAC when it is available. Unset selection reports `dac_unconfigured`; an absent selected DAC reports `dac_missing`. Deployment starts web before hardware discovery, including transient sysfs failures. With no usable selection, it stops all audio services and disables existing audio units to prevent stale device mappings from starting at boot. Recovery regenerates and enables audio services when selected hardware becomes available. The web service remains enabled across reboots.
+Open `http://<device-address>:8080`, select the DAC when it is available. Unset selection reports `dac_unconfigured`; an absent selected DAC reports `dac_missing`. Deployment starts web before hardware discovery, including transient sysfs failures. With no usable selection, it stops all audio services and disables existing audio units to prevent stale device mappings from starting at boot. Recovery regenerates and enables audio services when selected hardware becomes available. The web service remains enabled across reboots.
 
 For command-line DAC selection instead:
 
@@ -74,9 +74,9 @@ systemctl --user enable --now hifi-web
 
 ## Web configuration and volume
 
-Open `http://<device-address>:8080`. Read the generated password from the private `~/.config/hifi-streamer/admin.json`. Configure DAC, names, priority and source mode. Enable Spotify, supply its key and pair from the Spotify app.
+Open `http://<device-address>:8080`. This development release has no password login. Clients that can reach the endpoint can control the device; use it on the intended LAN. State changes still require matching Origin and the CSRF token from `/api/status`. Old `admin.json` files are ignored. Configure DAC, names, priority and source mode. Enable Spotify, supply its key and pair from the Spotify app.
 
-DLNA direct output has no software mixer. Spotify session volume and PipeWire sink volume are separate. Startup volume defaults to 40% and is configurable from 0 to 100. For unity gain use 100% session and 0dB host sink, then control listening volume on the DAC/amplifier. Lower hardware volume before increasing software volume.
+DLNA direct output has no software mixer. Spotify session volume and PipeWire sink volume are separate. Soloist startup volume defaults to 100% and is configurable from 0 to 100. For unity gain use 100% session and 0dB host sink, then control listening volume on the DAC/amplifier. Lower hardware volume before increasing software volume.
 
 First inspect `pactl list sinks` and `pactl list sink-inputs`: a DAC sink at 40% adds approximately −23.9dB even when Spotify shows 100%. Pause playback and lower DAC/amplifier volume before setting the selected sink to unity. The Spotify startup setting does not change the host sink. With a selected usable DAC, the following changes only its PipeWire sink:
 
@@ -90,11 +90,13 @@ run('pactl', 'set-sink-volume', runtime.hardware.sink(), '100%')
 PY
 ```
 
-Verify 100%/0dB again after restart or re-enumeration. WirePlumber normally persists the selected node's volume; the application preserves gain during recovery and does not automatically boost existing output. A fresh Spotify installation also needs first pairing in the Spotify device list: an API key alone does not create a logged-in session. Missing hardware can stop the player during protective recovery and remove its advertisement until paused readiness returns.
+Verify 100%/0dB again after restart or re-enumeration. WirePlumber persists the selected route volume; recovery preserves gain. Fresh application configuration initializes its first available DAC to 100% once, including a DAC connected after installation. Reinstalling an existing configuration or recovering output does not force gain back to 100%. New WirePlumber routes also default to unity. A fresh Spotify installation also needs first pairing in the Spotify device list: an API key alone does not create a logged-in session. Missing hardware can stop the player during protective recovery and remove its advertisement until paused readiness returns.
+
+The **Host output volume** form applies immediately without restarting source containers. Its current readout comes from the selected PipeWire sink; unavailable output disables the control, and mute remains unchanged. Adjustments accept integer 0–100%. `GET /api/status` exposes `output.volume`; `POST /api/output/volume` accepts `{"percent":60}` with matching Origin and the status CSRF token. This changes PipeWire sources such as Spotify, not DLNA direct ALSA. Soloist startup volume is a separate source setting.
 
 ## Source sample rate
 
-Spotify follows Soloist's decoded Pulse PCM rather than a fixed 44.1kHz policy. Inspect authenticated `/api/status` under `sources.spotify.pcm_rate`, `pactl list sink-inputs`, and the selected `/proc/asound/card<runtime-card>/stream0`. The default clock/standby rate is a baseline, not a forced source rate. Missing PCM waits; ambiguous or unsupported formats report a source error without a hidden fixed fallback. Playback rates must be supported by both USB playback capabilities and the active host allowed-rates setting.
+Spotify follows Soloist's decoded Pulse PCM rather than a fixed 44.1kHz policy. Inspect `/api/status` under `sources.spotify.pcm_rate`, `pactl list sink-inputs`, and the selected `/proc/asound/card<runtime-card>/stream0`. The default clock/standby rate is a baseline, not a forced source rate. Missing PCM waits; ambiguous or unsupported formats report a source error without a hidden fixed fallback. Playback rates must be supported by both USB playback capabilities and the active host allowed-rates setting.
 
 If Soloist supplies 44.1kHz for every track, output remains 44.1kHz because that is the observable decoded format. Matching rate does not prove the encoded-file rate, bit-perfect delivery or absence of upstream processing. Live format changes can introduce a short interruption; gain/mute remain unchanged. DLNA retains its separate direct ALSA path.
 

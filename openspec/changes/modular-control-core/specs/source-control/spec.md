@@ -13,8 +13,8 @@ The system SHALL expose running, authentication, playback, output and health sep
 - **WHEN** an optional source becomes unreachable
 - **THEN** DLNA remains independently queryable and the unavailable source reports unknown
 
-### Requirement: Configuration authorization
-The system SHALL restrict configuration writes to authenticated sessions, hide secrets and reject unknown modules, invalid configuration and cross-origin requests.
+### Requirement: Configuration request validation
+The system SHALL require same-origin CSRF-protected configuration writes, hide secrets and reject unknown modules, invalid configuration and cross-origin requests.
 
 #### Scenario: Invalid configuration
 - **WHEN** a write selects an unknown DAC or source

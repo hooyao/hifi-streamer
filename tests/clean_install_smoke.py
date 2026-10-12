@@ -89,27 +89,28 @@ def main():
         run('systemctl','--user','daemon-reload')
         run('sh',str(REPO/'deploy/install.sh'))
         config = Config(config_path)
-        password = config.password()
         shutil.copy2(backup/'config/images.json', config_path/'images.json')
         run(sys.executable,str(REPO/'deploy/manage.py'),'apply')
         for _ in range(30):
             try:
-                request('login', {'password':password})
+                request('status')
                 break
             except OSError:
                 time.sleep(1)
         else:
-            raise AssertionError('fresh web login unavailable')
+            raise AssertionError('fresh web status unavailable')
         state = request('status')
         assert state['config']['dac'] is None and not state['config']['spotify_key_set']
         assert state['sources']['spotify']['health'] == 'unconfigured'
         wait('dac_unconfigured')
         for unit in ('hifi-mpd','hifi-upmpdcli','hifi-soloist'):
             assert run('systemctl','--user','is-active',unit, check=False).returncode != 0
-        checked('empty-state web login and optional Spotify disabled')
+        assert not (config_path/'admin.json').exists()
+        checked('empty-state password-free web and optional Spotify disabled')
+        before_config = config.path.read_bytes()
         run('sh',str(REPO/'deploy/install.sh'))
-        assert Config(config_path).password() == password
-        checked('idempotent account install preserves generated admin credential')
+        assert config.path.read_bytes() == before_config
+        checked('idempotent account install preserves configuration')
         config.data['dac'] = 'absent-install-fixture'
         atomic_json(config.path, config.data)
         assert wait('dac_missing')['owner'] is None

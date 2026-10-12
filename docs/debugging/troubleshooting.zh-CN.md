@@ -17,7 +17,7 @@ UI显示播放不能证明硬件输出。确认选定USB DAC存在、流指向�
 
 ## 音量低或采样率异常
 
-检查音源会话、sink-input、sink和硬件混音器音量。Spotify initial_volume默认40%；sink40%会额外衰减约23.9dB。校正增益前降低硬件听音音量。
+检查音源会话、sink-input、sink和硬件混音器音量。全新 Soloist initial_volume 和宿主输出默认100%；已有 sink40%仍会额外衰减约23.9dB。控制平面显示实际宿主音量，并明确提示静音或输出不可用。校正增益前降低硬件听音音量。
 
 核对 `pw-metadata -n settings 0` 和allowed-rates配置。44.1kHz流以48kHz输出说明重采样。DSD64 DoP使用176.4kHz传输，不应当作Spotify格式。
 

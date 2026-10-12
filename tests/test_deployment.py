@@ -38,9 +38,13 @@ class BootstrapTests(unittest.TestCase):
                     subprocess_run.assert_called_with(
                         ['systemctl','--user','stop','hifi-upmpdcli','hifi-mpd','hifi-soloist'], check=False)
                 discovery.return_value = [device]
+                subprocess_run.return_value.returncode = 1
                 manage.apply(maintenance_held=True)
                 self.assertIn('/dev/snd/pcmC2D0p', (root/'units/hifi-mpd.service').read_text())
                 run.assert_any_call('systemctl','--user','enable','--now','hifi-mpd','hifi-upmpdcli')
+                subprocess_run.assert_any_call(
+                    ['systemctl','--user','reset-failed','hifi-mpd','hifi-upmpdcli'],
+                    check=False, stderr=manage.subprocess.DEVNULL)
 
 
 if __name__ == '__main__':

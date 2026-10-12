@@ -16,6 +16,8 @@ Generate the bounded web unit and enable it before hardware-dependent service ge
 
 Retain the existing recovery supervisor for later hardware availability. Do not invent placeholder ALSA mappings or assume a card number to bring up audio services.
 
+Treat failed-state reset as best effort because a newly generated unit may not yet be loaded by systemd. The subsequent checked enable/start command determines whether service startup actually succeeded; existing failed units still receive the reset.
+
 ## Risks / Trade-offs
 
 - Missing images still prevent application bootstrap → retain explicit immutable-image preflight and document its order.

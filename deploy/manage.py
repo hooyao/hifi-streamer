@@ -134,7 +134,9 @@ openhome = 1
                      '-v',f'{DATA}/soloist/data:/data/.local/share/soloist:rw','--tmpfs','/data/.cache/soloist:rw,size=128m,mode=1777',refs['soloist']],256,'pipewire-pulse.service')
     run('systemctl','--user','daemon-reload')
     if only is None:
-        run('systemctl','--user','reset-failed','hifi-mpd','hifi-upmpdcli')
+        # Fresh units may not have been loaded yet; enable/start is authoritative.
+        subprocess.run(['systemctl','--user','reset-failed','hifi-mpd','hifi-upmpdcli'],
+                       check=False, stderr=subprocess.DEVNULL)
         run('systemctl','--user','enable','--now','hifi-mpd','hifi-upmpdcli')
     if config.data['sources']['spotify']['enabled'] and config.has_key():
         subprocess.run(['systemctl','--user','enable','--now','hifi-soloist'], check=False)

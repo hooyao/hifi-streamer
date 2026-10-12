@@ -8,5 +8,5 @@
 ## 2. Acceptance
 
 - [x] 2.1 Add/run synthetic Pulse transport tests at 44.1/48/96kHz and live format changes; verify client/graph/USB agreement, global force-rate zero, gain preservation and no unexpected recovery budget use; document that synthetic PCM does not qualify upstream Spotify formats.
-- [ ] 2.2 Verify real Soloist decoded PCM equals DAC output, both DLNA handoffs, restart and manual listening; preserve required DLNA when the optional source format is invalid.
+- [x] 2.2 Verify real Soloist decoded PCM equals DAC output, both DLNA handoffs, restart and manual listening; preserve required DLNA when the optional source format is invalid.
 - [ ] 2.3 Pass Linux unit tests, strict OpenSpec/document checks and required PR CI; publish a focused PR depending on the clean-install fixes.

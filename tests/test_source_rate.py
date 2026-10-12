@@ -164,3 +164,16 @@ class Tests(unittest.TestCase):
             dlna.release.assert_not_called()
             spotify.command.assert_called_once_with('pause')
             route.assert_not_called(); repair.assert_not_called()
+
+    def test_changed_generation_does_not_resume_new_hardware(self):
+        hardware=Hardware(lambda:{'card':1})
+        checks=iter([True,False])
+        with patch.object(hardware,'sink',return_value='selected'), \
+             patch.object(hardware,'volume_snapshot',return_value={}), \
+             patch.object(hardware,'standby'), patch.object(hardware,'move'), \
+             patch.object(hardware,'ensure_released'), \
+             patch.object(hardware,'hardware_rate') as rate, \
+             patch('hifi.pipewire.run') as run, self.assertRaisesRegex(RuntimeError,'generation'):
+            hardware.follow_rate(48000,valid=lambda:next(checks))
+        rate.assert_not_called()
+        self.assertNotIn(('pactl','suspend-sink','selected','0'),[call.args for call in run.call_args_list])

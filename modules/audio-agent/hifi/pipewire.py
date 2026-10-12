@@ -82,7 +82,11 @@ class Hardware:
         if rate not in allowed:
             raise PCMFormatError(f'Host clock configuration does not allow decoded PCM rate {rate}Hz')
 
-    def follow_rate(self, rate):
+    def follow_rate(self, rate, valid=None):
+        def check():
+            if valid is not None and not valid():
+                raise RuntimeError('Output generation changed during clock transition')
+        check()
         target = self.sink()
         saved = self.volume_snapshot()
         self.standby()
@@ -90,11 +94,14 @@ class Hardware:
         self.move('hifi_standby')
         run('pactl', 'suspend-sink', target, '1')
         self.ensure_released()
+        check()
         self.hardware_rate(target, rate)
         self.owned_clock = True
         self.restore_volume(saved)
+        check()
         self.move(target)
         run('pactl', 'suspend-sink', 'hifi_standby', '1')
+        check()
         run('pactl', 'suspend-sink', target, '0')
 
     def sink(self):

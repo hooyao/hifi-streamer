@@ -168,7 +168,9 @@ class Runtime:
                     and spotify.get('active') and spotify.get('health') == 'healthy'):
                 token = self.recovery.generation
                 try:
-                    self.adapters['spotify'].follow_pcm_rate()
+                    self.adapters['spotify'].follow_pcm_rate(valid=lambda:
+                        token == self.recovery.generation and self.recovery.phase == 'ready'
+                        and self.core.owner == 'spotify')
                 except Exception:
                     self.recovery.ready_key = None
                     self.recovery.schedule('output_stalled')

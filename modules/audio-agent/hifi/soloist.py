@@ -81,8 +81,11 @@ class Soloist:
         self.applied_rate = self.pcm_rate
         self.command('play')
 
-    def follow_pcm_rate(self):
+    def follow_pcm_rate(self, valid=None):
         if (not self.format_error and self.pcm_rate is not None
                 and self.pcm_rate == self.validated_rate and self.pcm_rate != self.applied_rate):
-            self.hardware.follow_rate(self.pcm_rate)
+            if valid is None:
+                self.hardware.follow_rate(self.pcm_rate)
+            else:
+                self.hardware.follow_rate(self.pcm_rate, valid=valid)
             self.applied_rate = self.pcm_rate

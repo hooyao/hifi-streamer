@@ -14,6 +14,8 @@ DLNA为必备音源，Spotify为可选Soloist适配器。Roon、Apple Music和Am
 
 适配器提供instance ID、snapshot、release和acquire。快照区分运行、认证、本机active会话、播放与健康状态。无法访问时上报unknown播放状态，不假装已经停止。
 
+Spotify 另外提供可观察的 `pcm_rate`，流尚未可用时的 `rate_pending`，以及本机格式错误或不支持时持久显示的 `rate_error`/`error`。只检查本机 active 会话。取得输出权前，先核对解码 PCM、USB 播放能力和宿主允许采样率，不能因无效请求替换其他音源。采样率跟随属于输出基础设施，不用于推测原文件采样率或绕过上游解码器限制。
+
 恢复会关闭旧控制传输并更新适配器实例 ID，再返回暂停就绪。硬件可用性和实际输出健康独立于播放器快照，参阅[自动恢复](../debugging/audio-recovery.zh-CN.md)。
 
 仲裁器使用source ID、instance ID及序号，拒绝旧/重复请求，串行交接，确认硬件释放后才授予输出权；这不会向容器开放任意设备权限。

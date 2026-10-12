@@ -48,6 +48,14 @@ python3 tests/clean_install_smoke.py --replace-app-state --dsd --report .local-b
 
 Acceptance includes an empty configuration, unconfigured optional Spotify, web authentication, missing selected hardware, idempotent credential preservation, first API DAC selection, newly loaded audio units, unchanged web process and actual DLNA formats/controls. A passed report also needs `private_state_restored: true`; keep failures distinct from successful restore. First-start discovery retries for a bounded period and skips unreachable/stale advertisements.
 
+## Decoded source-rate following
+
+```sh
+python3 tests/source_rate_smoke.py --report .local-build/source-rate.json
+```
+
+This dedicated-host test temporarily stops agent/Soloist, supplies synthetic Pulse PCM through the adapter at 44.1→48→96→44.1kHz, and verifies client format, driver graph, USB, unchanged gain/mute, global force-rate zero, unchanged repair history and rate cleanup. It restores paused services and runs no long-duration soak. It qualifies transport, not Spotify's decoder or encoded catalog formats. Real Soloist acceptance also requires observed PCM/USB agreement, both DLNA handoffs, restart and listening confirmation.
+
 ## Long-duration test
 
 ```sh

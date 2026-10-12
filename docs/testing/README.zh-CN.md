@@ -48,6 +48,14 @@ python3 tests/clean_install_smoke.py --replace-app-state --dsd --report .local-b
 
 验收覆盖空配置、未配置的可选 Spotify、网页认证、已选硬件缺失、重复安装保留凭据、首次 API 选择 DAC、新音频服务加载、网页进程不变及实际 DLNA 格式/控制。报告除了 passed 还必须有 `private_state_restored: true`；状态恢复成功不代表之前失败的测试通过。首次广播使用有界重试，并跳过不可达或过期的设备地址。
 
+## 解码音源采样率跟随
+
+```sh
+python3 tests/source_rate_smoke.py --report .local-build/source-rate.json
+```
+
+这个专用宿主测试会暂时停止 agent/Soloist，通过适配器提供合成 Pulse PCM，按 44.1→48→96→44.1kHz 切换，核对客户端格式、驱动图、USB、增益/静音不变、全局 force-rate 为零、修复记录不变及采样率请求清理。结束后恢复暂停服务，不运行长时间测试。它验证传输，不验证 Spotify 解码器或目录原文件格式。真实 Soloist 还须核对 PCM/USB 相等、双向 DLNA 交接、重启和听音。
+
 ## 长时间测试
 
 ```sh

@@ -1,7 +1,12 @@
 import json
+import re
 import subprocess
 import time
 from pathlib import Path
+
+
+class PCMFormatError(ValueError):
+    """A source format cannot be safely matched to the selected output."""
 
 
 def run(*args):
@@ -19,6 +24,85 @@ class Hardware:
 
     def items(self, kind):
         return json.loads(run('pactl', '--format=json', 'list', kind))
+
+    def source_rate(self, binary):
+        streams = [s for s in self.items('sink-inputs')
+                   if s.get('properties', {}).get('application.process.binary') == binary]
+        if not streams:
+            return None
+        active = [s for s in streams if not s.get('corked', False)]
+        rates = set()
+        for stream in active or streams:
+            specification = stream.get('sample_specification')
+            match = re.search(r'\b(\d+)Hz$', specification) if isinstance(specification, str) else None
+            if not match:
+                raise PCMFormatError('Decoded PCM sample rate is unavailable')
+            rates.add(int(match[1]))
+        if len(rates) != 1:
+            raise PCMFormatError('Decoded PCM sample rate is ambiguous')
+        return rates.pop()
+
+    def validate_source_rate(self, rate):
+        if type(rate) is not int or not 8000 <= rate <= 768000:
+            raise PCMFormatError('Decoded PCM sample rate is invalid')
+        dac = self.selected()
+        if not dac:
+            raise PCMFormatError('Selected DAC is unavailable')
+        try:
+            text = Path(f"/proc/asound/card{dac['card']}/stream0").read_text()
+        except OSError as error:
+            raise PCMFormatError('DAC PCM rate capabilities are unavailable') from error
+        rates = set()
+        continuous = []
+        pcm = False
+        for line in text.partition('\nCapture:')[0].splitlines():
+            if 'Format:' in line:
+                pcm = 'SPECIAL' not in line
+            elif pcm and 'Rates:' in line:
+                values = [int(value) for value in re.findall(r'\d+', line.partition('Rates:')[2])]
+                if 'continuous' in line and len(values) >= 2:
+                    continuous.append((values[0], values[-1]))
+                else:
+                    rates.update(values)
+        if rate not in rates and not any(low <= rate <= high for low, high in continuous):
+            raise PCMFormatError(f'DAC does not support decoded PCM rate {rate}Hz')
+        metadata = run('pw-metadata', '-n', 'settings', '0')
+        forced = re.search(r"key:'clock.force-rate' value:'(\d+)'", metadata)
+        if forced and int(forced[1]):
+            raise PCMFormatError('Global forced clock must be cleared before following source PCM')
+        match = re.search(r"key:'clock.allowed-rates' value:'([^']+)'", metadata)
+        if not match:
+            raise PCMFormatError('Host allowed PCM rates are unavailable')
+        try:
+            allowed = json.loads(match[1])
+        except ValueError as error:
+            raise PCMFormatError('Host allowed PCM rates are invalid') from error
+        if not isinstance(allowed, list):
+            raise PCMFormatError('Host allowed PCM rates are invalid')
+        if rate not in allowed:
+            raise PCMFormatError(f'Host clock configuration does not allow decoded PCM rate {rate}Hz')
+
+    def follow_rate(self, rate, valid=None):
+        def check():
+            if valid is not None and not valid():
+                raise RuntimeError('Output generation changed during clock transition')
+        check()
+        target = self.sink()
+        saved = self.volume_snapshot()
+        self.standby()
+        run('pactl', 'suspend-sink', 'hifi_standby', '0')
+        self.move('hifi_standby')
+        run('pactl', 'suspend-sink', target, '1')
+        self.ensure_released()
+        check()
+        self.hardware_rate(target, rate)
+        self.owned_clock = True
+        self.restore_volume(saved)
+        check()
+        self.move(target)
+        run('pactl', 'suspend-sink', 'hifi_standby', '1')
+        check()
+        run('pactl', 'suspend-sink', target, '0')
 
     def sink(self):
         dac = self.selected()

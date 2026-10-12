@@ -34,6 +34,8 @@ Only one source owns the selected DAC. Output states are disconnected, idle, swi
 
 DLNA handoff moves Spotify to standby, suspends the hardware sink and enables MPD direct output. Spotify handoff pauses MPD, enables null output and resumes the hardware sink. Playback intent and ownership are distinct.
 
+Spotify output follows the PCM rate actually supplied by Soloist through Pulse. A supported changed rate parks the stream briefly, retunes only the selected DAC node and restores it without changing gain/mute or forcing a global clock. Stable formats do not repeatedly reopen the device. Unknown formats wait; malformed, ambiguous or unsupported formats report a source error and cannot revoke a healthy DLNA owner. Direct handoff clears the source-owned request. This matches decoded PCM, not hidden encoded-file metadata or conversion already performed inside Soloist.
+
 Unplugging revokes output. Reconnection regenerates mappings and may rebuild containers. Playback stays paused by default.
 
 The [recovery supervisor](../debugging/audio-recovery.md) observes hardware independently of slow player control, publishes output-health errors and repairs services/routes within a persistent retry budget. Deployment, updates and recovery share a maintenance lock; status queries remain responsive while services are repaired.

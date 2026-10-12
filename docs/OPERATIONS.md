@@ -92,6 +92,14 @@ PY
 
 Verify 100%/0dB again after restart or re-enumeration. WirePlumber normally persists the selected node's volume; the application preserves gain during recovery and does not automatically boost existing output. A fresh Spotify installation also needs first pairing in the Spotify device list: an API key alone does not create a logged-in session. Missing hardware can stop the player during protective recovery and remove its advertisement until paused readiness returns.
 
+## Source sample rate
+
+Spotify follows Soloist's decoded Pulse PCM rather than a fixed 44.1kHz policy. Inspect authenticated `/api/status` under `sources.spotify.pcm_rate`, `pactl list sink-inputs`, and the selected `/proc/asound/card<runtime-card>/stream0`. The default clock/standby rate is a baseline, not a forced source rate. Missing PCM waits; ambiguous or unsupported formats report a source error without a hidden fixed fallback. Playback rates must be supported by both USB playback capabilities and the active host allowed-rates setting.
+
+If Soloist supplies 44.1kHz for every track, output remains 44.1kHz because that is the observable decoded format. Matching rate does not prove the encoded-file rate, bit-perfect delivery or absence of upstream processing. Live format changes can introduce a short interruption; gain/mute remain unchanged. DLNA retains its separate direct ALSA path.
+
+[Spotify's Soloist announcement](https://developer.spotify.com/blog/2026-08-13-introducing-spotify-soloist) specifies lossless up to 24-bit/44.1kHz. A 44.1kHz result is therefore expected for current Spotify lossless music; dynamic host following does not add upstream 96/192kHz content.
+
 ## Budgets
 
 | Resource | Limit |

@@ -92,6 +92,14 @@ PY
 
 重启或重新枚举后再次检查 100%/0dB。WirePlumber 通常会持久化该节点音量；应用在恢复期间保留增益，不会自动提高已有输出音量。全新 Spotify 安装还需要在手机设备列表首次配对，API key 本身不等于登录会话。硬件缺失时，保护性恢复可能停止播放器；暂停就绪恢复前，设备广播也可能消失。
 
+## 音源采样率
+
+Spotify 跟随 Soloist 解码后提供的 Pulse PCM，不再使用固定 44.1kHz 策略。通过认证 `/api/status` 中的 `sources.spotify.pcm_rate`、`pactl list sink-inputs` 和所选 `/proc/asound/card<runtime-card>/stream0` 核对。默认时钟/备用输出采样率只是基线，不是强制音源采样率。尚无 PCM 时等待；格式冲突或不支持时上报音源错误，不静默使用固定值。播放格式须同时满足 USB 播放能力和宿主当前允许采样率。
+
+如果 Soloist 对所有曲目都提供 44.1kHz PCM，输出仍然是 44.1kHz，因为这是可观察到的解码格式。采样率相等不能证明原文件采样率、bit-perfect 或上游没有处理。运行中格式切换可能短暂中断，但不会改变增益/静音。DLNA 继续使用独立的 ALSA 直出路径。
+
+[Spotify 官方 Soloist 说明](https://developer.spotify.com/blog/2026-08-13-introducing-spotify-soloist)标明无损最高 24-bit/44.1kHz。因此当前 Spotify 无损音乐输出 44.1kHz 是正常结果；宿主动态跟随不会增加上游未提供的 96/192kHz 内容。
+
 ## 容量预算
 
 | 资源 | 上限 |

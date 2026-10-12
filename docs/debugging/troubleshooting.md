@@ -21,6 +21,8 @@ Check source session volume, sink-input volume, sink volume and hardware mixer. 
 
 Check `pw-metadata -n settings 0` and the installed allowed-rates configuration. A 44.1kHz stream at 48kHz indicates resampling. DSD64 DoP uses 176.4kHz transport; do not interpret it as a Spotify format.
 
+Compare decoded PCM to the running driver graph and USB rate. `clock.rate` metadata is a default preference and can remain 44100 while an allowed driver graph runs at 48000; it is insufficient by itself to diagnose conversion. Use `pw-top`/negotiated node formats and USB feedback. Correct a source `rate_error` or retry a supported format; do not force 44100 to hide it. Rate changes park the stream before closing/reopening the selected sink because a live Pulse client can otherwise keep the DAC occupied.
+
 ## Busy or missing DAC
 
 MPD must keep a standby output available after a standalone restart. Its persisted direct-output state may be disabled; if both outputs are disabled, a new DLNA request can fail before arbitration observes a playing edge. Deployment enables standby at startup and disables it during direct playback handoff.

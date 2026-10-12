@@ -122,13 +122,20 @@ class Runtime:
                 self.snapshots[name]['observed_at'] = time.time()
             if self.recovery.phase != 'ready':
                 return
+            spotify = self.snapshots.get('spotify', {})
+            if spotify.get('rate_error') and spotify.get('playback') == 'playing' and spotify.get('active'):
+                self.adapters['spotify'].command('pause')
+                if self.core.owner == 'spotify':
+                    self.hardware.for_direct()
+                    self.core.owner, self.core.state = None, 'idle'
             policy = self.config.data['mode']
             priority = self.config.data['priority']
             order = [priority] + [name for name in self.adapters if name != priority]
             switched = False
             for name in order:
                 snapshot = self.snapshots[name]
-                playing = snapshot['playback'] == 'playing' and snapshot.get('active', False)
+                playing = (snapshot['playback'] == 'playing' and snapshot.get('active', False)
+                           and snapshot.get('health') == 'healthy')
                 edge = playing and not self.previous.get(name, False)
                 if not playing:
                     self.blocked_intents.discard(name)
@@ -157,6 +164,18 @@ class Runtime:
             elif self.core.owner and self.snapshots[self.core.owner]['playback'] == 'stopped':
                 self.hardware.silence()
                 self.core.owner, self.core.state = None, 'idle'
+            if (self.core.owner == 'spotify' and spotify.get('playback') == 'playing'
+                    and spotify.get('active') and spotify.get('health') == 'healthy'):
+                token = self.recovery.generation
+                try:
+                    self.adapters['spotify'].follow_pcm_rate()
+                except Exception:
+                    self.recovery.ready_key = None
+                    self.recovery.schedule('output_stalled')
+                    raise
+                if token != self.recovery.generation:
+                    self.core.disconnect()
+                    return
             self.recovery.playback_health(self.snapshots)
 
     def hardware_loop(self):

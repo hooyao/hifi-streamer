@@ -1,16 +1,18 @@
 """Unity initialization, actual gain control and stale-observation isolation."""
 import json
+import sys
 import tempfile
 import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(REPO/'modules/audio-agent'))
 from hifi.config import Config
 from hifi.pipewire import Hardware
 from hifi.runtime import Runtime
 
-REPO = Path(__file__).resolve().parents[1]
 DAC = {'id':'dac','card':1}
 
 

@@ -11,4 +11,4 @@
 
 ## 3. Integration
 
-- [ ] 3.1 Pass Linux tests, strict OpenSpec and document checks; qualify fresh unity initialization, password-free status/volume API and adjusted-volume preservation on the device; verify required PR CI and publish the PR without merging.
+- [x] 3.1 Pass Linux tests, strict OpenSpec and document checks; qualify fresh unity initialization, password-free status/volume API and adjusted-volume preservation on the device; verify required PR CI and publish the PR without merging.

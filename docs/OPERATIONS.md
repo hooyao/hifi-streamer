@@ -43,6 +43,8 @@ python3 deploy/manage.py record-images
 
 The exported names resolve to `docker.io/library/...`; `localhost/...:test` is not the loaded name. Use exports from the same reviewed successful build and correct architecture. Public installation requires public GHCR **packages**, independently of repository visibility; an anonymous manifest/pull failure must be fixed or handled by validated exports before selecting hardware. Do not embed a GitHub token in application config or shell examples.
 
+Qualified multi-architecture releases use `<source-sha>-<workflow-run-id>-<run-attempt>`. `stable` and bare source-SHA tags are compatibility aliases: a scheduled rebuild of the same source can change their digest, including the refreshed Soloist binary. Resolve the qualified release and pin its digest. Compare an export against the registry reference from that same workflow, not an older export against a newly rebuilt source alias. Feature-branch dispatch publishes its qualified release without changing production aliases.
+
 After recording images, bootstrap the web control plane even if the DAC is not connected:
 
 ```sh

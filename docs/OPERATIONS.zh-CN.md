@@ -43,6 +43,8 @@ python3 deploy/manage.py record-images
 
 导出镜像加载后名称为 `docker.io/library/...`，不是 `localhost/...:test`。四个产物应来自同一个已 review 且成功的构建，架构也必须匹配。公开安装要求 GHCR **包**公开，源码仓库公开不代表镜像公开；匿名 manifest 查询或拉取失败时，先修正权限或使用验证过的导出，再选择硬件。不要把 GitHub token 放入应用配置或命令示例。
 
+验证过的多架构发布引用使用 `<source-sha>-<workflow-run-id>-<run-attempt>`。`stable` 和纯源码 SHA 标签是兼容别名：相同源码的定时重建也可能改变其 digest，包括更新 Soloist 二进制。应解析对应构建发布并固定 digest。导出产物应与同一次工作流的 registry 引用比较，不能拿旧导出与新重建的源码别名比较。功能分支手动构建只发布自己的构建引用，不改变生产别名。
+
 记录镜像后，即使 DAC 未连接，也可先启动网页控制平面：
 
 ```sh

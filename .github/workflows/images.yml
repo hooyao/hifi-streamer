@@ -63,7 +63,8 @@ jobs:
         shell: bash
         run: |
           repo="${GITHUB_REPOSITORY,,}"
-          ref="ghcr.io/${repo}/${{ matrix.component }}:${GITHUB_SHA}-${{ matrix.arch }}"
+          build_ref="${GITHUB_SHA}-${GITHUB_RUN_ID}"
+          ref="ghcr.io/${repo}/${{ matrix.component }}:${build_ref}-${{ matrix.arch }}"
           docker tag hifi-${{ matrix.component }}:test "$ref"
           docker push "$ref"
       - uses: actions/upload-artifact@v4
@@ -88,4 +89,10 @@ jobs:
         run: |
           repo="${GITHUB_REPOSITORY,,}"
           image="ghcr.io/${repo}/${{ matrix.component }}"
-          docker buildx imagetools create -t "$image:$GITHUB_SHA" -t "$image:stable" "$image:$GITHUB_SHA-amd64" "$image:$GITHUB_SHA-arm64"
+          build_ref="${GITHUB_SHA}-${GITHUB_RUN_ID}"
+          release_ref="${build_ref}-${GITHUB_RUN_ATTEMPT}"
+          tags=(-t "$image:$release_ref")
+          if [[ "$GITHUB_REF" == refs/heads/main || "$GITHUB_REF" == refs/tags/v* ]]; then
+            tags+=(-t "$image:$GITHUB_SHA" -t "$image:stable")
+          fi
+          docker buildx imagetools create "${tags[@]}" "$image:$build_ref-amd64" "$image:$build_ref-arm64"

@@ -22,6 +22,8 @@ Run read-only account checks before install.sh writes files. Validate local subo
 
 During bootstrap, retry transient socket connection failures under the existing 20-second generation/deadline check. A finite loop also bounds observations under a stationary test clock. This waits for asynchronous container initialization without resetting the persistent disruption budget; invalid protocol responses and permanent errors still enter normal bounded recovery.
 
+Resume MPD against standby before enabling direct output, then retire standby. Sending a final resume after exposing physical output races with controllers that immediately pause after observing playback. This ordering preserves the required DLNA pause contract without delaying or retrying controller commands.
+
 ## Risks / Trade-offs
 
 - Missing images still prevent application bootstrap → retain explicit immutable-image preflight and document its order.

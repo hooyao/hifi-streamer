@@ -38,8 +38,13 @@ def discover(name):
         except socket.timeout:
             pass
     sock.close()
-    for location in locations:
-        root = ET.fromstring(HTTP.open(location, timeout=5).read())
+    for location in sorted(locations):
+        try:
+            with HTTP.open(location, timeout=5) as response:
+                root = ET.fromstring(response.read(65536))
+        except (OSError, ValueError, ET.ParseError):
+            # A stale advertisement must not hide another reachable renderer.
+            continue
         friendly = root.find('.//d:friendlyName', NS)
         if friendly is None or not friendly.text.startswith(name):
             continue
@@ -47,6 +52,16 @@ def discover(name):
             if service.find('d:serviceType', NS).text == AV:
                 return urllib.parse.urljoin(location, service.find('d:controlURL', NS).text)
     raise RuntimeError('renderer not discovered')
+
+
+def wait_discover(name, timeout=30):
+    deadline = time.monotonic()+timeout
+    while time.monotonic() < deadline:
+        try:
+            return discover(name)
+        except RuntimeError:
+            time.sleep(1)
+    raise RuntimeError('renderer did not become discoverable within startup deadline')
 
 
 def soap(url, action, **args):
@@ -99,7 +114,7 @@ def main():
     parser.add_argument('--report', type=Path, default=Path('dlna-report.json'))
     parser.add_argument('--dsd', action='store_true')
     args = parser.parse_args()
-    control = discover(args.name)
+    control = wait_discover(args.name)
     checks = []
     checks.append({'check':'SSDP discovery','passed':True})
     class Quiet(http.server.SimpleHTTPRequestHandler):

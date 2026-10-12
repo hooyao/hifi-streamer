@@ -21,7 +21,7 @@ Read the relevant architecture and source contract before changing a module. Use
 | Spotify | Optional Soloist control and Pulse output | [Declaration](modules/sources/spotify/module.json), [Adapter](modules/audio-agent/hifi/soloist.py), [WebSocket](modules/audio-agent/hifi/websocket.py), [Image](images/soloist/) |
 | Configuration and API | Persistent configuration, login and authenticated control | [Configuration](modules/audio-agent/hifi/config.py), [API](modules/audio-agent/hifi/api.py) |
 | Web UI | Device/source configuration and update controls | [UI](modules/web/index.html), [Proxy](modules/web/nginx.conf), [Image](images/web/) |
-| Installation | Host dependencies and rootless service generation | [Host setup](deploy/host-setup.sh), [Account setup](deploy/install.sh), [Service generator](deploy/manage.py) |
+| Installation | Host dependencies and rootless service generation | [Host setup](deploy/host-setup.sh), [Account preflight](deploy/preflight.py), [Account setup](deploy/install.sh), [Service generator](deploy/manage.py) |
 | Updates and maintenance | Candidate observation, preflight and rollback | [Transaction](deploy/update.py), [Observation](deploy/check-updates.py), [Maintenance](modules/audio-agent/hifi/maintenance.py) |
 | CI and verification | Repository checks and native image builds | [Workflows](.github/workflows/), [Image gate](images/check.py), [Tests](tests/) |
 | Specifications | Behavior changes and acceptance tasks | [OpenSpec](openspec/) |

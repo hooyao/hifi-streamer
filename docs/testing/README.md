@@ -38,6 +38,16 @@ MPD restart testing covers planned and abrupt exits, paused queue restoration an
 
 Recovery fault injection accepts `mpd`, `start-limit`, `player`, `route` or `session`. Wait for available automatic budget before using `--automatic-only`; otherwise the test fails rather than silently counting manual retry as automatic acceptance. It stops services and requires paused ready output. The start-limit test holds the maintenance lock while temporarily injecting failed startup and removes its override before permitting repair. Physical hotplug/power-cycle and subsequent playback/listening remain separate checks.
 
+## Reversible application clean-install test
+
+On a dedicated configured host, the following temporarily replaces application configuration, data and generated units, then restores the private state in a `finally` block. It interrupts playback and leaves output paused. Keep hardware volume low, avoid other controllers, and retain the private backup until restoration is checked. It does not reflash the OS, change subordinate allocations, or reset the host's PipeWire volume. Omit `--dsd` for PCM-only hardware. No long-duration test is run.
+
+```sh
+python3 tests/clean_install_smoke.py --replace-app-state --dsd --report .local-build/clean-install.json
+```
+
+Acceptance includes an empty configuration, unconfigured optional Spotify, web authentication, missing selected hardware, idempotent credential preservation, first API DAC selection, newly loaded audio units, unchanged web process and actual DLNA formats/controls. A passed report also needs `private_state_restored: true`; keep failures distinct from successful restore. First-start discovery retries for a bounded period and skips unreachable/stale advertisements.
+
 ## Long-duration test
 
 ```sh

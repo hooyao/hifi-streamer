@@ -57,7 +57,10 @@ LogRateLimitBurst=20
 [Install]
 WantedBy=default.target
 '''
-    (UNITS / f'hifi-{name}.service').write_text(text)
+    path = UNITS / f'hifi-{name}.service'
+    previous = path.read_text() if path.exists() else None
+    path.write_text(text)
+    return previous != text
 
 
 def images():
@@ -77,12 +80,28 @@ def apply(only=None, maintenance_held=False):
             return apply(only, maintenance_held=True)
     config = Config(CONFIG)
     refs = images()
-    selected = next((d for d in discover() if d['id'] == config.data['dac']), None)
     for directory in (DATA / 'mpd', DATA / 'upmpdcli', DATA / 'soloist/data', DATA / 'soloist/cache', UNITS):
         directory.mkdir(parents=True, exist_ok=True)
-    stop_units = ['hifi-soloist'] if only == 'soloist' else ['hifi-upmpdcli', 'hifi-mpd', 'hifi-soloist']
+    web_changed = unit('web', ['-v',f'{RUNTIME}/hifi-streamer:/run/hifi:ro',refs['web']],32,'hifi-agent.service')
+    web_active = web_changed and subprocess.run(
+        ['systemctl','--user','is-active','--quiet','hifi-web'],
+        check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+    run('systemctl','--user','daemon-reload')
+    run('systemctl','--user','enable','--now','hifi-web')
+    if web_active:
+        run('systemctl','--user','restart','hifi-web')
+    try:
+        selected = next((d for d in discover() if d['id'] == config.data['dac']), None)
+    except (OSError, ValueError):
+        # USB sysfs entries can disappear during enumeration; web stays available.
+        selected = None
+    audio_units = ['hifi-upmpdcli', 'hifi-mpd', 'hifi-soloist']
+    stop_units = ['hifi-soloist'] if selected and only == 'soloist' else audio_units
     subprocess.run(['systemctl', '--user', 'stop', *stop_units], check=False)
     if not selected:
+        stale_units = [name for name in audio_units if (UNITS / f'{name}.service').exists()]
+        if stale_units:
+            run('systemctl','--user','disable','--now',*stale_units)
         return
     mpd_config = f'''music_directory "/var/lib/mpd"
 playlist_directory "/var/lib/mpd"
@@ -126,13 +145,14 @@ openhome = 1
     unit('mpd', ['--device', f"/dev/snd/pcmC{selected['card']}D0p", '--device', f"/dev/snd/controlC{selected['card']}",
                  '-v',f'{CONFIG}/mpd.conf:/etc/mpd.conf:ro','-v',f'{DATA}/mpd:/var/lib/mpd:rw',refs['mpd']],128,'pipewire-pulse.service')
     unit('upmpdcli', ['-v',f'{CONFIG}/upmpdcli.conf:/etc/upmpdcli.conf:ro','-v',f'{DATA}/upmpdcli:/var/cache/upmpdcli:rw',refs['upmpdcli']],96,'hifi-mpd.service')
-    unit('web', ['-v',f'{RUNTIME}/hifi-streamer:/run/hifi:ro',refs['web']],32,'hifi-agent.service')
     unit('soloist', ['-e','HOME=/data','-e',f"INITIAL_VOLUME={config.data['sources']['spotify'].get('initial_volume',40)}",'-e',f"DEVICE_NAME={config.data['sources']['spotify']['name']}",'-e','PULSE_SERVER=unix:/run/pulse/native',
                      '-v',f'{RUNTIME}/pulse:/run/pulse:ro','-v',f'{CONFIG}/spotify-key:/run/secrets/spotify-key:ro',
                      '-v',f'{DATA}/soloist/data:/data/.local/share/soloist:rw','--tmpfs','/data/.cache/soloist:rw,size=128m,mode=1777',refs['soloist']],256,'pipewire-pulse.service')
     run('systemctl','--user','daemon-reload')
     if only is None:
-        run('systemctl','--user','reset-failed','hifi-mpd','hifi-upmpdcli')
+        # Fresh units may not have been loaded yet; enable/start is authoritative.
+        subprocess.run(['systemctl','--user','reset-failed','hifi-mpd','hifi-upmpdcli'],
+                       check=False, stderr=subprocess.DEVNULL)
         run('systemctl','--user','enable','--now','hifi-mpd','hifi-upmpdcli')
     if config.data['sources']['spotify']['enabled'] and config.has_key():
         subprocess.run(['systemctl','--user','enable','--now','hifi-soloist'], check=False)

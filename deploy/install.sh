@@ -2,6 +2,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 repo=$(pwd)
+python3 "$repo/deploy/preflight.py"
 install -d "$HOME/.config/pipewire/pipewire.conf.d"
 install -m 644 "$repo/modules/audio-runtime/10-rates.conf" "$HOME/.config/pipewire/pipewire.conf.d/hifi-rates.conf"
 install -d -m 700 "$HOME/.config/hifi-streamer" "$HOME/.config/containers" "$HOME/.config/systemd/user"

@@ -28,7 +28,9 @@ class Runtime:
         self.adapters = {name: factories[m['adapter']]() for name, m in self.modules.items()}
         self.hardware.mpd = self.adapters['dlna']
         self.core = Arbiter(self.adapters, self.hardware)
-        self.snapshots = {}
+        self.snapshots = {name: {'running':False, 'authenticated':False, 'active':False,
+                                'playback':'unknown', 'health':'unreachable', 'observed_at':0}
+                          for name in self.modules}
         self.sequence = {name:0 for name in self.modules}
         self.previous = {}
         self.blocked_intents = set()
@@ -63,8 +65,12 @@ class Runtime:
         except OSError:
             devices = []
         snapshots = {name: dict(value) for name, value in self.snapshots.items()}
-        for value in snapshots.values():
-            if time.time() - value.get('observed_at', 0) > 10:
+        for name, value in snapshots.items():
+            configured = getattr(self.adapters[name], 'configured', None)
+            if configured and not configured():
+                value.update(running=False, authenticated=False, active=False,
+                             health='unconfigured', playback='unknown')
+            elif time.time() - value.get('observed_at', 0) > 10:
                 value.update(health='unreachable', playback='unknown')
         return {'devices':devices, 'config':self.config.public(),
                 'sources':snapshots, 'output':{'owner':self.core.owner, 'state':self.core.state,

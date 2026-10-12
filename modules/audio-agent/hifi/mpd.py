@@ -52,6 +52,7 @@ class MPD:
 
     def acquire(self, generation):
         self.hardware.for_direct()
+        # Resume before exposing the DAC so a subsequent controller Pause wins.
+        self.command('pause 0')
         self.output('direct', True)
         self.output('standby', False)
-        self.command('pause 0')

@@ -1,6 +1,7 @@
 """Unity initialization, actual gain control and stale-observation isolation."""
 import json
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -14,6 +15,35 @@ DAC = {'id':'dac','card':1}
 
 
 class Tests(unittest.TestCase):
+    def test_stalled_volume_read_does_not_block_hardware_observation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Runtime(REPO,directory)
+            runtime.recovery.phase = 'ready'
+            entered, release, observed = threading.Event(), threading.Event(), threading.Event()
+            def stalled_read():
+                entered.set()
+                release.wait(2)
+                return {'percent':100,'mute':False}
+            def hardware_observation():
+                observed.set()
+                runtime.stop.set()
+            with patch.object(runtime,'selected',return_value=DAC), \
+                 patch.object(runtime.hardware,'volume_status',side_effect=stalled_read), \
+                 patch.object(runtime.recovery,'observe',side_effect=hardware_observation):
+                volume = threading.Thread(target=runtime.volume_loop)
+                volume.start()
+                hardware = threading.Thread(target=runtime.hardware_loop)
+                try:
+                    self.assertTrue(entered.wait(1))
+                    hardware.start()
+                    self.assertTrue(observed.wait(1),'hardware observer waited for audio server')
+                finally:
+                    runtime.stop.set()
+                    release.set()
+                    volume.join(3)
+                    if hardware.ident is not None:
+                        hardware.join(3)
+
     def test_fresh_defaults_no_password_and_explicit_preferences_survive(self):
         with tempfile.TemporaryDirectory() as directory:
             config = Config(directory)

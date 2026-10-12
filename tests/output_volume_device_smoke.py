@@ -77,8 +77,22 @@ def main():
         assert after['output']['volume']['percent']==60,'restart lost host gain'
         assert after['output']['volume']['mute']==saved_mute,'mute changed'
         assert after['config']['sources']['spotify'].get('initial_volume',100)==source_volume
+        time.sleep(2)
+        subprocess.run(['systemctl','--user','restart','wireplumber'],check=True,timeout=30)
+        deadline = time.monotonic()+30
+        while time.monotonic()<deadline:
+            try:
+                actual = runtime.hardware.volume_status()
+                if actual['percent']==60 and actual['mute']==saved_mute:
+                    break
+            except RuntimeError:
+                pass
+            time.sleep(.5)
+        else:
+            raise AssertionError('WirePlumber restart lost host gain')
         report.update(passed=True, fresh_unity=True, password_free=True,
-                      volume_zero_and_sixty=True, restart_preserved=True, source_setting_unchanged=True)
+                      volume_zero_and_sixty=True, restart_preserved=True,
+                      wireplumber_restart_preserved=True, source_setting_unchanged=True)
     finally:
         ready()
         api('output/volume',{'percent':saved})

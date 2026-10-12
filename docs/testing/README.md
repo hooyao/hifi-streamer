@@ -14,7 +14,7 @@ Unit tests cover configuration validation, credentials redaction, password-free 
 
 ## Hardware integration
 
-`tests/output_volume_device_smoke.py --report <private-report-path>` qualifies password-free status, fresh host-unity initialization, 0%/60% adjustments, rejection of 101%, agent-restart persistence, source-setting independence and restoration of the prior host gain. It briefly changes software volume and restarts the agent; keep hardware volume low. The unit tests separately cover unavailable/stale routes and adjustment isolation.
+`tests/output_volume_device_smoke.py --report <private-report-path>` qualifies password-free status, fresh host-unity initialization, 0%/60% adjustments, rejection of 101%, agent/WirePlumber restart persistence, source-setting independence and restoration of the prior host gain. It briefly changes software volume and restarts those user services; keep hardware volume low. The unit tests separately cover unavailable/stale routes and adjustment isolation.
 
 See [automatic audio recovery](../debugging/audio-recovery.md) for output-health states and bounded repair behavior.
 

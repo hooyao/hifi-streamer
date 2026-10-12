@@ -14,7 +14,7 @@ git diff --check
 
 ## 硬件集成
 
-`tests/output_volume_device_smoke.py --report <私有报告路径>` 验证无密码状态访问、全新宿主单位增益初始化、0%／60% 调整、拒绝 101%、agent 重启后保留音量、音源设置独立及恢复原有宿主增益。测试会短暂调整软件音量并重启 agent，请保持硬件低音量。单元测试另行覆盖不可用／过期路由及调整隔离。
+`tests/output_volume_device_smoke.py --report <私有报告路径>` 验证无密码状态访问、全新宿主单位增益初始化、0%／60% 调整、拒绝 101%、agent／WirePlumber 重启后保留音量、音源设置独立及恢复原有宿主增益。测试会短暂调整软件音量并重启这些用户服务，请保持硬件低音量。单元测试另行覆盖不可用／过期路由及调整隔离。
 
 输出健康状态及有界修复行为见[自动音频恢复](../debugging/audio-recovery.zh-CN.md)。
 

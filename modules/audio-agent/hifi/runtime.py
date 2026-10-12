@@ -251,7 +251,6 @@ class Runtime:
             try:
                 self.config.reload()
                 self.recovery.observe()
-                self.observe_volume()
                 failures = 0
             except Exception:
                 failures += 1
@@ -259,8 +258,14 @@ class Runtime:
                     LOG.warning('hardware observation failed')
             self.stop.wait(1)
 
+    def volume_loop(self):
+        while not self.stop.is_set():
+            self.observe_volume()
+            self.stop.wait(2)
+
     def loop(self):
         threading.Thread(target=self.hardware_loop, daemon=True).start()
+        threading.Thread(target=self.volume_loop, daemon=True).start()
         failures = 0
         while not self.stop.is_set():
             try:

@@ -31,4 +31,3 @@ The control plane SHALL display actual selected host-output volume and accept in
 #### Scenario: Invalid adjustment
 - **WHEN** an adjustment is out of range, fractional, boolean or has unsupported arguments
 - **THEN** the API rejects it without changing output
-

@@ -21,7 +21,7 @@ HiFi Streamer 是模块化 Linux 网络音频接收端。DLNA 是必备音源；
 | Spotify | 可选Soloist控制与Pulse输出 | [声明](modules/sources/spotify/module.json), [适配器](modules/audio-agent/hifi/soloist.py), [WebSocket](modules/audio-agent/hifi/websocket.py), [镜像](images/soloist/) |
 | 配置与API | 持久化配置、登录与认证控制 | [配置](modules/audio-agent/hifi/config.py), [API](modules/audio-agent/hifi/api.py) |
 | 网页 | 设备/音源配置与更新控制 | [页面](modules/web/index.html), [代理](modules/web/nginx.conf), [镜像](images/web/) |
-| 安装 | 宿主依赖与rootless服务生成 | [宿主准备](deploy/host-setup.sh), [账号安装](deploy/install.sh), [服务生成器](deploy/manage.py) |
+| 安装 | 宿主依赖与rootless服务生成 | [宿主准备](deploy/host-setup.sh), [账号预检](deploy/preflight.py), [账号安装](deploy/install.sh), [服务生成器](deploy/manage.py) |
 | 更新与维护 | 候选观察、预检与回滚 | [事务](deploy/update.py), [观察](deploy/check-updates.py), [维护](modules/audio-agent/hifi/maintenance.py) |
 | CI与验证 | 仓库检查与原生镜像构建 | [工作流](.github/workflows/), [镜像门禁](images/check.py), [测试](tests/) |
 | 规格 | 行为变更与验收任务 | [OpenSpec](openspec/) |

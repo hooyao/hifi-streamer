@@ -18,6 +18,8 @@ Retain the existing recovery supervisor for later hardware availability. Do not 
 
 Treat failed-state reset as best effort because a newly generated unit may not yet be loaded by systemd. The subsequent checked enable/start command determines whether service startup actually succeeded; existing failed units still receive the reset.
 
+Run read-only account checks before install.sh writes files. Validate local subordinate allocations and their overlap, dependency executables, and user systemd connectivity; verify Podman can initialize the rootless engine. Never automatically reassign ranges belonging to another account. Registry visibility and OCI archive import are explicit deployment prerequisites. Preserve source and host volumes separately; do not silently increase gain on existing installations.
+
 ## Risks / Trade-offs
 
 - Missing images still prevent application bootstrap → retain explicit immutable-image preflight and document its order.

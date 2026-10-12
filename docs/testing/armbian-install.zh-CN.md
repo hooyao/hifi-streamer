@@ -87,6 +87,8 @@ dmesg --level=err,warn | tail -n 80
 
 确认从 U 盘根分区运行、主板配置正确、有备份和恢复途径后再继续。拔掉无关存储并保持供电稳定。以下命令属于 **ophub 镜像**，不是所有 Armbian 发行方式都有：
 
+这一步前先检查重复使用的安装介质：其中可能残留旧账号、subordinate ID 分配、设备树配置，以及另一台盒子的 `/usr/lib/u-boot/mybox-bootloader.img` 备份。安装器可能直接复用该文件，而不重新备份当前目标的 bootloader。应与实际盒子独立保存的 bootloader 核对来源，或重新准备匹配镜像并按上游流程备份。不要盲目复制另一台盒子的 bootloader，也不要把完整旧磁盘头覆盖到新分区表上。重命名后的服务账号同样需要在 rootless 应用安装前核对 subordinate ID。
+
 ```sh
 sudo armbian-install
 ```

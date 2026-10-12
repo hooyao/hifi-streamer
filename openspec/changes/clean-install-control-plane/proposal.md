@@ -9,6 +9,8 @@ A fresh installation without a selected or connected DAC returns from service ge
 - Generate and enable the web service independently of DAC selection.
 - Keep audio services stopped when the selected DAC is unavailable.
 - Verify fresh bootstrap with absent hardware, subsequent configuration and restart.
+- Reject incomplete rootless account prerequisites before installing account services.
+- Document validated OCI import, separate host/session gain, and image visibility preflight.
 
 ## Capabilities
 
@@ -22,4 +24,4 @@ None.
 
 ## Impact
 
-`deploy/manage.py`, deployment regression tests and bilingual operating instructions. Existing API authentication and audio recovery behavior remain in effect; no image content changes are required.
+`deploy/install.sh`, account preflight, `deploy/manage.py`, deployment regression tests and bilingual operating instructions. Existing API authentication and audio recovery behavior remain in effect; no image content changes are required.

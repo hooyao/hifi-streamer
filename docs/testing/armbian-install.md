@@ -87,6 +87,8 @@ Keep the system on USB for qualification if desired. Install HiFi Streamer after
 
 Proceed only after confirming USB-root boot, the correct board profile, a backup and a recovery path. Disconnect unrelated storage and keep power stable. The following command belongs to the **ophub image**, not every Armbian distribution:
 
+Inspect reused installation media before this step: it can contain old accounts, subordinate-ID allocations, device-tree settings and a saved `/usr/lib/u-boot/mybox-bootloader.img` from a different box. The installer can reuse that bootloader file instead of backing up the current destination. Verify its provenance against a separately saved bootloader from the actual box, or use a freshly prepared matching image and the upstream backup procedure. Do not blindly copy another box's saved bootloader or restore an entire disk header over a new partition table. Renamed service accounts also need subordinate-ID verification before rootless application setup.
+
 ```sh
 sudo armbian-install
 ```

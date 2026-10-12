@@ -14,6 +14,8 @@ sudo loginctl enable-linger "$USER"
 
 Log out and back in after changing groups. Rootless Podman requires unique subuid/subgid ranges and crun. Run application commands as the service account:
 
+`install.sh` checks prerequisites before writing application files. Verify the current account has a unique contiguous range of at least 65536 IDs in both `/etc/subuid` and `/etc/subgid`. Renaming a user does not reliably rename these allocations: an administrator must check ownership and unused ranges before correcting them. Do not copy another user's range or keep overlapping name/numeric-UID entries. Enable linger for the final account name; run the installer through that account's SSH login rather than root or a session with stale groups.
+
 ```sh
 systemctl --user enable --now pipewire pipewire-pulse wireplumber
 sh deploy/install.sh
@@ -28,6 +30,18 @@ podman pull ghcr.io/hooyao/hifi-streamer/soloist@sha256:<verified-digest>
 ```
 
 Write the four immutable references to `~/.config/hifi-streamer/images.json`. Values must be full registry digest references or local `sha256:<image-id>`, not mutable tags. For local bootstrap, tag each image `localhost/hifi-<component>:dev`, then run `python3 deploy/manage.py record-images`.
+
+For validated ARM64 exports from a successful main workflow, download the four `bootstrap-<component>-arm64` artifacts into matching component directories and transfer them to the host. Import the workflow's Docker archives with:
+
+```sh
+for component in mpd upmpdcli soloist web; do
+    podman load --input "$component/image-arm64.tar.gz" || exit 1
+    podman tag "docker.io/library/hifi-$component:test" "localhost/hifi-$component:dev" || exit 1
+done
+python3 deploy/manage.py record-images
+```
+
+The exported names resolve to `docker.io/library/...`; `localhost/...:test` is not the loaded name. Use exports from the same reviewed successful build and correct architecture. Public installation requires public GHCR **packages**, independently of repository visibility; an anonymous manifest/pull failure must be fixed or handled by validated exports before selecting hardware. Do not embed a GitHub token in application config or shell examples.
 
 After recording images, bootstrap the web control plane even if the DAC is not connected:
 
@@ -61,6 +75,20 @@ systemctl --user enable --now hifi-web
 Open `http://<device-address>:8080`. Read the generated password from the private `~/.config/hifi-streamer/admin.json`. Configure DAC, names, priority and source mode. Enable Spotify, supply its key and pair from the Spotify app.
 
 DLNA direct output has no software mixer. Spotify session volume and PipeWire sink volume are separate. Startup volume defaults to 40% and is configurable from 0 to 100. For unity gain use 100% session and 0dB host sink, then control listening volume on the DAC/amplifier. Lower hardware volume before increasing software volume.
+
+First inspect `pactl list sinks` and `pactl list sink-inputs`: a DAC sink at 40% adds approximately −23.9dB even when Spotify shows 100%. Pause playback and lower DAC/amplifier volume before setting the selected sink to unity. The Spotify startup setting does not change the host sink. With a selected usable DAC, the following changes only its PipeWire sink:
+
+```sh
+PYTHONPATH=modules/audio-agent python3 - <<'PY'
+from pathlib import Path
+from hifi.runtime import Runtime
+from hifi.pipewire import run
+runtime = Runtime(Path.cwd(), Path.home()/'.config/hifi-streamer')
+run('pactl', 'set-sink-volume', runtime.hardware.sink(), '100%')
+PY
+```
+
+Verify 100%/0dB again after restart or re-enumeration. WirePlumber normally persists the selected node's volume; the application preserves gain during recovery and does not automatically boost existing output. A fresh Spotify installation also needs first pairing in the Spotify device list: an API key alone does not create a logged-in session. Missing hardware can stop the player during protective recovery and remove its advertisement until paused readiness returns.
 
 ## Budgets
 

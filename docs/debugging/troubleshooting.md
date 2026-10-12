@@ -29,6 +29,8 @@ MPD must keep a standby output available after a standalone restart. Its persist
 
 `No such device` requires fresh USB discovery. Re-enumeration can invalidate a container bind mount even when the card number is unchanged. Preserve session data while rebuilding mappings.
 
+Kernel `cannot set/get freq ... err -71` means a USB protocol transaction failed, not that Spotify selected the wrong audio format. If it is followed by `USB disconnect` and the DAC disappears from `lsusb`, service restarts cannot restore a device that the kernel no longer enumerates. Check physical DAC power/input, cable, port and supply; disconnect unrelated USB storage for a controlled comparison. Power-cycle the DAC when needed and verify enumeration before replay. A successful comparison does not by itself prove the removed storage or cable was the cause. Do not add endless controller resets to the audio recovery loop.
+
 ## Pops and discontinuities
 
 Isolate the path: ALSA-only generated tone, PipeWire tone, then the service stream. Record CPU frequency, USB errors, route and timing under the same conditions. Do not keep changing several variables simultaneously.

@@ -3,9 +3,13 @@
 ## 1. Bootstrap behavior
 
 - [x] 1.1 Generate and enable the bounded web service before DAC-dependent generation; add regression coverage for fresh unset selection, absent selected hardware and subsequent available hardware; update both operating-document editions.
+- [x] 1.2 Add fail-before-write account preflight with meaningful root/dependency/subordinate-range tests; document account renames, validated image import and separate host/session volume in both languages.
+- [x] 1.3 Publish all source states before hardware readiness and preserve optional unconfigured status across stale observations; verify no network calls in status and disabled-source redaction of stale playback.
 
 ## 2. Acceptance
 
 - [x] 2.1 Verify clean-host web login, authenticated unconfigured/missing status, stopped audio and persistent web availability after reboot.
-- [ ] 2.2 Verify selection of a connected DAC through the API reaches ready output and passes PCM/FLAC/DoP playback without manually restarting web.
-- [x] 2.3 Pass Linux unit tests, strict OpenSpec checks and required PR CI.
+- [x] 2.2 Verify selection of a connected DAC through the API reaches ready output and passes PCM/FLAC/DoP playback without manually restarting web.
+- [ ] 2.3 Pass Linux unit tests, strict OpenSpec checks and required PR CI.
+- [x] 2.4 Run a reversible application clean-install regression on the host: empty configuration/data, optional Spotify disabled, web authentication, first DAC selection, fresh audio-unit startup, idempotent reinstall and private-state restoration; require subsequent playback verification.
+- [ ] 2.5 Verify immutable GHCR images can be pulled without registry credentials; record deployment limitations if visibility cannot be changed.

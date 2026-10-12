@@ -30,6 +30,30 @@ class Hardware:
 
 
 class Tests(unittest.TestCase):
+    def test_fresh_no_dac_status_lists_sources_without_player_calls(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Runtime(Path(__file__).resolve().parents[1],directory)
+            with patch.object(runtime, 'devices', return_value=[]), \
+                 patch.object(runtime.adapters['spotify'], 'command', side_effect=AssertionError('network call')), \
+                 patch.object(runtime.adapters['dlna'], 'command', side_effect=AssertionError('network call')), \
+                 patch('hifi.runtime.time.time', return_value=1000):
+                sources = runtime.status()['sources']
+            self.assertEqual(set(sources), {'dlna','spotify'})
+            self.assertEqual(sources['spotify']['health'], 'unconfigured')
+            self.assertFalse(sources['spotify']['running'])
+            self.assertEqual(sources['dlna']['playback'], 'unknown')
+
+    def test_disabled_source_status_does_not_publish_stale_playback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Runtime(Path(__file__).resolve().parents[1],directory)
+            runtime.snapshots['spotify'].update(playback='playing', health='healthy', active=True,
+                                                authenticated=True, running=True, observed_at=0)
+            with patch.object(runtime, 'devices', return_value=[]):
+                value = runtime.status()['sources']['spotify']
+            self.assertEqual(value['health'], 'unconfigured')
+            self.assertEqual(value['playback'], 'unknown')
+            self.assertFalse(value['authenticated'])
+
     def test_simultaneous_priority_and_loss(self):
         with tempfile.TemporaryDirectory() as directory:
             runtime = Runtime(Path(__file__).resolve().parents[1],directory)

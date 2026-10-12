@@ -11,6 +11,6 @@
 
 - [x] 2.1 Verify clean-host web login, authenticated unconfigured/missing status, stopped audio and persistent web availability after reboot.
 - [x] 2.2 Verify selection of a connected DAC through the API reaches ready output and passes PCM/FLAC/DoP playback without manually restarting web.
-- [ ] 2.3 Pass Linux unit tests, strict OpenSpec checks and required PR CI.
+- [x] 2.3 Pass Linux unit tests, strict OpenSpec checks and required PR CI.
 - [x] 2.4 Run a reversible application clean-install regression on the host: empty configuration/data, optional Spotify disabled, web authentication, first DAC selection, fresh audio-unit startup, idempotent reinstall and private-state restoration; require subsequent playback verification.
 - [ ] 2.5 Verify immutable GHCR images can be pulled without registry credentials; record deployment limitations if visibility cannot be changed.

@@ -23,6 +23,10 @@ After validated images are recorded and deployment is applied, the system SHALL 
 - **WHEN** an operator selects an available DAC through the authenticated configuration page
 - **THEN** the audio services are generated and output becomes ready without requiring a manual web service restart
 
+#### Scenario: Apply a different verified web image
+- **WHEN** an operator applies deployment references containing a different verified web image
+- **THEN** the active web service is recreated with that image, while an unchanged deployment does not restart web
+
 ### Requirement: Account installation preflight
 
 The account installer SHALL reject root execution, missing rootless dependencies, unavailable user systemd, and missing or overlapping subordinate ID ranges before writing application configuration or service units. Errors SHALL identify the prerequisite and corrective action without exposing secrets or modifying account allocations.

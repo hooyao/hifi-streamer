@@ -12,6 +12,28 @@ spec.loader.exec_module(manage)
 
 
 class BootstrapTests(unittest.TestCase):
+    def test_changed_web_image_restarts_but_idempotent_apply_keeps_web(self):
+        refs = {name:'sha256:'+'a'*64 for name in ('mpd','upmpdcli','soloist','web')}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.multiple(manage, CONFIG=root/'config', DATA=root/'data',
+                                UNITS=root/'units', RUNTIME=root/'run'), \
+                 patch.object(manage,'images',return_value=refs), \
+                 patch.object(manage,'discover',return_value=[]), \
+                 patch.object(manage,'run') as run, \
+                 patch.object(manage.subprocess,'run') as subprocess_run:
+                subprocess_run.return_value.returncode = 3
+                manage.apply(maintenance_held=True)
+                run.reset_mock()
+                refs['web'] = 'sha256:'+'b'*64
+                subprocess_run.return_value.returncode = 0
+                manage.apply(maintenance_held=True)
+                run.assert_any_call('systemctl','--user','restart','hifi-web')
+                self.assertIn(refs['web'],(root/'units/hifi-web.service').read_text())
+                run.reset_mock()
+                manage.apply(maintenance_held=True)
+                self.assertFalse(any('restart' in call.args for call in run.call_args_list))
+
     def test_web_survives_missing_selection_and_later_audio_setup(self):
         device = {'id':'fixture', 'card':2}
         refs = {name:'sha256:'+'a'*64 for name in ('mpd','upmpdcli','soloist','web')}

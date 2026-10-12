@@ -14,6 +14,8 @@ The rootless service generator requires four immutable image references and retu
 
 Generate the bounded web unit and enable it before hardware-dependent service generation. Keep the existing shared maintenance lock and stop affected players before the missing-device return. This avoids a second deployment command and makes the existing apply operation sufficient for initial setup.
 
+Compare the generated web unit to its previous content. If it changed and web is already active, explicitly restart it after daemon-reload; enable --now alone leaves the old container running. Unchanged units retain the web process during ordinary DAC/source configuration.
+
 Retain the existing recovery supervisor for later hardware availability. Do not invent placeholder ALSA mappings or assume a card number to bring up audio services.
 
 Treat failed-state reset as best effort because a newly generated unit may not yet be loaded by systemd. The subsequent checked enable/start command determines whether service startup actually succeeded; existing failed units still receive the reset.

@@ -57,7 +57,10 @@ LogRateLimitBurst=20
 [Install]
 WantedBy=default.target
 '''
-    (UNITS / f'hifi-{name}.service').write_text(text)
+    path = UNITS / f'hifi-{name}.service'
+    previous = path.read_text() if path.exists() else None
+    path.write_text(text)
+    return previous != text
 
 
 def images():
@@ -80,9 +83,14 @@ def apply(only=None, maintenance_held=False):
     selected = next((d for d in discover() if d['id'] == config.data['dac']), None)
     for directory in (DATA / 'mpd', DATA / 'upmpdcli', DATA / 'soloist/data', DATA / 'soloist/cache', UNITS):
         directory.mkdir(parents=True, exist_ok=True)
-    unit('web', ['-v',f'{RUNTIME}/hifi-streamer:/run/hifi:ro',refs['web']],32,'hifi-agent.service')
+    web_changed = unit('web', ['-v',f'{RUNTIME}/hifi-streamer:/run/hifi:ro',refs['web']],32,'hifi-agent.service')
+    web_active = web_changed and subprocess.run(
+        ['systemctl','--user','is-active','--quiet','hifi-web'],
+        check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
     run('systemctl','--user','daemon-reload')
     run('systemctl','--user','enable','--now','hifi-web')
+    if web_active:
+        run('systemctl','--user','restart','hifi-web')
     stop_units = ['hifi-soloist'] if only == 'soloist' else ['hifi-upmpdcli', 'hifi-mpd', 'hifi-soloist']
     subprocess.run(['systemctl', '--user', 'stop', *stop_units], check=False)
     if not selected:

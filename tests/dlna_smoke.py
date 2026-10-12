@@ -42,7 +42,7 @@ def discover(name):
         try:
             with HTTP.open(location, timeout=5) as response:
                 root = ET.fromstring(response.read(65536))
-        except (OSError, ET.ParseError):
+        except (OSError, ValueError, ET.ParseError):
             # A stale advertisement must not hide another reachable renderer.
             continue
         friendly = root.find('.//d:friendlyName', NS)

@@ -12,6 +12,43 @@ spec.loader.exec_module(manage)
 
 
 class BootstrapTests(unittest.TestCase):
+    def test_discovery_failure_keeps_web_and_disables_stale_audio_units(self):
+        refs = {name:'sha256:'+'a'*64 for name in ('mpd','upmpdcli','soloist','web')}
+        for failure in (None, OSError('sysfs disappeared'), ValueError('invalid card')):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                units = root/'units'
+                units.mkdir()
+                enabled = {'hifi-upmpdcli', 'hifi-mpd', 'hifi-soloist'}
+                for name in enabled:
+                    (units/f'{name}.service').write_text('[Install]\nWantedBy=default.target\n')
+                config = manage.Config(root/'config')
+                config.data['dac'] = 'fixture'
+                manage.atomic_json(config.path, config.data)
+                events = []
+                def command(*args):
+                    events.append(args)
+                    if 'disable' in args:
+                        enabled.difference_update(args[4:])
+                def discovery():
+                    self.assertIn(('systemctl','--user','enable','--now','hifi-web'), events)
+                    if failure:
+                        raise failure
+                    return []
+                with patch.multiple(manage, CONFIG=root/'config', DATA=root/'data',
+                                    UNITS=units, RUNTIME=root/'run'), \
+                     patch.object(manage,'images',return_value=refs), \
+                     patch.object(manage,'discover',side_effect=discovery), \
+                     patch.object(manage,'run',side_effect=command) as run, \
+                     patch.object(manage.subprocess,'run') as subprocess_run:
+                    manage.apply(only='soloist', maintenance_held=True)
+                    run.assert_any_call('systemctl','--user','disable','--now',
+                                        'hifi-upmpdcli','hifi-mpd','hifi-soloist')
+                    subprocess_run.assert_called_with(
+                        ['systemctl','--user','stop','hifi-upmpdcli','hifi-mpd','hifi-soloist'], check=False)
+                self.assertFalse(enabled, 'stale audio services remain enabled for boot')
+                self.assertTrue((units/'hifi-web.service').exists())
+
     def test_changed_web_image_restarts_but_idempotent_apply_keeps_web(self):
         refs = {name:'sha256:'+'a'*64 for name in ('mpd','upmpdcli','soloist','web')}
         with tempfile.TemporaryDirectory() as directory:

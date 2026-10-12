@@ -80,7 +80,6 @@ def apply(only=None, maintenance_held=False):
             return apply(only, maintenance_held=True)
     config = Config(CONFIG)
     refs = images()
-    selected = next((d for d in discover() if d['id'] == config.data['dac']), None)
     for directory in (DATA / 'mpd', DATA / 'upmpdcli', DATA / 'soloist/data', DATA / 'soloist/cache', UNITS):
         directory.mkdir(parents=True, exist_ok=True)
     web_changed = unit('web', ['-v',f'{RUNTIME}/hifi-streamer:/run/hifi:ro',refs['web']],32,'hifi-agent.service')
@@ -91,9 +90,18 @@ def apply(only=None, maintenance_held=False):
     run('systemctl','--user','enable','--now','hifi-web')
     if web_active:
         run('systemctl','--user','restart','hifi-web')
-    stop_units = ['hifi-soloist'] if only == 'soloist' else ['hifi-upmpdcli', 'hifi-mpd', 'hifi-soloist']
+    try:
+        selected = next((d for d in discover() if d['id'] == config.data['dac']), None)
+    except (OSError, ValueError):
+        # USB sysfs entries can disappear during enumeration; web stays available.
+        selected = None
+    audio_units = ['hifi-upmpdcli', 'hifi-mpd', 'hifi-soloist']
+    stop_units = ['hifi-soloist'] if selected and only == 'soloist' else audio_units
     subprocess.run(['systemctl', '--user', 'stop', *stop_units], check=False)
     if not selected:
+        stale_units = [name for name in audio_units if (UNITS / f'{name}.service').exists()]
+        if stale_units:
+            run('systemctl','--user','disable','--now',*stale_units)
         return
     mpd_config = f'''music_directory "/var/lib/mpd"
 playlist_directory "/var/lib/mpd"

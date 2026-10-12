@@ -3,7 +3,7 @@ import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 spec = importlib.util.spec_from_file_location('hifi_preflight', Path(__file__).resolve().parents[1]/'deploy/preflight.py')
 preflight = importlib.util.module_from_spec(spec)
@@ -11,6 +11,22 @@ spec.loader.exec_module(preflight)
 
 
 class PreflightTests(unittest.TestCase):
+    def test_engine_must_report_rootless_even_with_successful_exit(self):
+        for output in ('true\n', 'false\n', '', 'unexpected\n'):
+            with self.subTest(output=output), \
+                 patch.object(preflight.os, 'getuid', return_value=1000), \
+                 patch.object(preflight.shutil, 'which', return_value='/usr/bin/fixture'), \
+                 patch.object(preflight.pwd, 'getpwuid', return_value=Mock(pw_name='renderer')), \
+                 patch.object(preflight, 'check_ranges'), \
+                 patch.object(preflight.subprocess, 'run', side_effect=[
+                     Mock(returncode=0), Mock(returncode=0, stdout=output)]) as run:
+                if output.strip() == 'true':
+                    preflight.check()
+                else:
+                    with self.assertRaisesRegex(ValueError, 'engine is rootless'):
+                        preflight.check()
+                self.assertEqual(run.call_args.kwargs['stdout'], preflight.subprocess.PIPE)
+
     def ranges(self, text):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)/'subuid'

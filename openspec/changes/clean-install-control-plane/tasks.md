@@ -5,6 +5,7 @@
 - [x] 1.1 Generate and enable the bounded web service before DAC-dependent generation; add regression coverage for fresh unset selection, absent selected hardware and subsequent available hardware; update both operating-document editions.
 - [x] 1.2 Add fail-before-write account preflight with meaningful root/dependency/subordinate-range tests; document account renames, validated image import and separate host/session volume in both languages.
 - [x] 1.3 Publish all source states before hardware readiness and preserve optional unconfigured status across stale observations; verify no network calls in status and disabled-source redaction of stale playback.
+- [ ] 1.4 Wait for transient control-socket unavailability during cold startup without spending the repair budget; test success, deadline and hardware cancellation, then verify real host reboot, paused readiness, persisted unity gain and fresh playback.
 
 ## 2. Acceptance
 

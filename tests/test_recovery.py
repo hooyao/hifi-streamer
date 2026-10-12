@@ -265,6 +265,52 @@ class Tests(unittest.TestCase):
             recovery.bootstrap()
             self.assertEqual(recovery.reason, 'service_failed')
 
+    def test_cold_start_waits_for_control_socket_without_spending_budget(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime, recovery = self.fixture(directory)
+            recovery.hardware = self.hardware
+            runtime.adapters = {'dlna':Mock(), 'spotify':Mock()}
+            runtime.adapters['dlna'].snapshot.side_effect = [ConnectionRefusedError(), {'playback':'stopped'}]
+            runtime.adapters['spotify'].snapshot.return_value = {'playback':'paused'}
+            runtime.adapters['spotify'].configured.return_value = True
+            recovery.attempts = [998,999,1000]
+            with patch('hifi.recovery.time.sleep'):
+                recovery.bootstrap()
+            self.assertEqual(recovery.phase, 'ready')
+            self.assertEqual(recovery.attempts, [998,999,1000])
+
+    def test_startup_socket_wait_has_a_deadline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime, recovery = self.fixture(directory)
+            recovery.hardware = self.hardware
+            runtime.adapters = {'dlna':Mock(), 'spotify':Mock()}
+            runtime.adapters['dlna'].snapshot.side_effect = ConnectionRefusedError()
+            recovery.attempts = [998,999,1000]
+            def advance(_):
+                self.now += 5
+            with patch('hifi.recovery.time.sleep', side_effect=advance):
+                recovery.bootstrap()
+            self.assertEqual(recovery.reason, 'service_failed')
+            self.assertEqual(recovery.attempts, [998,999,1000])
+            self.assertLessEqual(runtime.adapters['dlna'].snapshot.call_count, 4)
+
+    def test_startup_socket_wait_cancels_when_hardware_generation_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runtime, recovery = self.fixture(directory)
+            recovery.hardware = self.hardware
+            runtime.adapters = {'dlna':Mock(), 'spotify':Mock()}
+            runtime.adapters['dlna'].snapshot.side_effect = ConnectionRefusedError()
+            recovery.attempts = [998,999,1000]
+            def lose_hardware(_):
+                recovery.generation += 1
+                recovery.hardware = {'availability':'missing'}
+                recovery.phase, recovery.reason = 'waiting', 'dac_missing'
+            with patch('hifi.recovery.time.sleep', side_effect=lose_hardware):
+                recovery.bootstrap()
+            self.assertEqual(recovery.reason, 'dac_missing')
+            self.assertFalse(recovery.busy)
+            self.assertEqual(recovery.attempts, [998,999,1000])
+
     def test_paused_route_does_not_require_a_running_stream_link(self):
         from hifi.pipewire import Hardware
         with tempfile.TemporaryDirectory() as directory:

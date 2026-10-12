@@ -34,3 +34,15 @@ The account installer SHALL reject root execution, missing rootless dependencies
 #### Scenario: Valid dedicated account
 - **WHEN** dependencies, subordinate ranges and the user systemd manager are available
 - **THEN** account installation proceeds without replacing existing credentials or source sessions
+
+### Requirement: Bounded cold-start control readiness
+
+On a host or agent restart with usable hardware, the system SHALL wait for transiently unavailable player control sockets within a cancellable startup deadline before treating their absence as a repair fault. Healthy startup SHALL preserve the existing repair budget and return to paused output readiness.
+
+#### Scenario: Container active before control socket
+- **WHEN** a player control socket initially refuses connections and becomes available within the startup deadline
+- **THEN** output reaches paused readiness without consuming a repair attempt
+
+#### Scenario: Control socket never becomes available
+- **WHEN** a player control socket remains unavailable through the startup deadline
+- **THEN** startup exits the wait and reports a fault for the bounded recovery supervisor

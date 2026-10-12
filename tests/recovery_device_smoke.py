@@ -69,7 +69,14 @@ def main():
         raise AssertionError('automatic recovery did not finish')
 
     password = json.loads((Path.home()/'.config/hifi-streamer/admin.json').read_text())['password']
-    api('login', {'password':password})
+    for attempt in range(30 if args.wait_ready else 1):
+        try:
+            api('login', {'password':password})
+            break
+        except (OSError, http.client.HTTPException):
+            if not args.wait_ready or attempt == 29:
+                raise
+            time.sleep(1)
     if args.observe_usb:
         rows = []
         missing = False

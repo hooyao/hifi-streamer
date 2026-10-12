@@ -127,7 +127,16 @@ class Recovery:
         try:
             with maintenance_lock(self.runtime.config.directory, blocking=False), \
                     self.control_lock(token, deadline):
-                snapshots = {name: adapter.snapshot() for name, adapter in self.runtime.adapters.items()}
+                # systemd can mark a container active before its control socket listens.
+                for attempt in range(40):
+                    self.check(token, deadline)
+                    try:
+                        snapshots = {name: adapter.snapshot() for name, adapter in self.runtime.adapters.items()}
+                        break
+                    except OSError:
+                        if attempt == 39:
+                            raise
+                        time.sleep(.5)
                 if self.runtime.adapters['spotify'].configured():
                     self.runtime.hardware.sink()
                     if not self.runtime.hardware.hardware_path_ready():
@@ -150,6 +159,8 @@ class Recovery:
         except BlockingIOError:
             self.boot_checked = False
             self.phase, self.reason = 'waiting', 'maintenance_busy'
+        except Cancelled:
+            pass
         except Exception as error:
             LOG.warning('startup reconciliation %s failed: %s', stage, type(error).__name__)
             if token == self.generation:

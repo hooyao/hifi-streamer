@@ -14,6 +14,12 @@ Unit tests cover configuration validation, credentials redaction, password-free 
 
 ## Hardware integration
 
+The MP3 transport regression also serves a known-length 20,850,000-byte stream generated in bounded chunks, larger than MPD's 16MiB full-file cache cap. Forward/backward seeks must reach and advance past the requested playback position; the backward seek from 1000s to 2s must produce a new nonzero HTTP Range request. A forward decoder seek may validly consume/discard frames on its existing HTTP connection. The report records requests per seek, including the failed case if qualification stops.
+
+Seek qualification waits within a finite deadline for playback advancement and, on the backward seek, the new request. MPD can publish the requested timestamp before the asynchronous decoder/HTTP operation completes; that timestamp alone is insufficient.
+
+Native MPD images run `tests/mpd_mp3_ci.py <image>` against generated silent MPEG-1 Layer III frames. Local decoding validates the fixture before HTTP CBR/VBR, ID3, extensionless audio/mpeg and sequential-input tests; seekable inputs verify forward/backward positioning and pause/resume. The build also compiles `images/mpd/seek-test.cxx` against the decoder's exact offset helper to reject negative/overflow/unknown-end requests. No media files or additional codecs are required. Device DLNA smoke includes tagged MP3 at 44.1/48kHz, PCM/FLAC at 44.1/48/88.2/96kHz and qualified DoP. It verifies the current URI before/after USB checks and after a rate timeout, so another controller replacing the fixture is reported as interference rather than conversion.
+
 `tests/output_volume_device_smoke.py --report <private-report-path>` qualifies password-free status, fresh host-unity initialization, 0%/60% adjustments, rejection of 101%, agent/WirePlumber restart persistence, source-setting independence and restoration of the prior host gain. It briefly changes software volume and restarts those user services; keep hardware volume low. The unit tests separately cover unavailable/stale routes and adjustment isolation.
 
 See [automatic audio recovery](../debugging/audio-recovery.md) for output-health states and bounded repair behavior.

@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'modules/audio-agent'))
 from hifi.mpd import MPD
-from http_mp3_fixture import MP3Server, silent_mp3
+from http_mp3_fixture import LargeMP3, MP3Server, silent_mp3
 
 
 def main():
@@ -97,6 +97,28 @@ audio_output {{
                     print('HTTP MP3 '+label+' passed',flush=True)
                 finally:
                     server.close()
+            # Known-length input above the cache cap must seek through HTTP itself.
+            data = LargeMP3()
+            assert len(data)>16*1024*1024
+            server = MP3Server(data)
+            try:
+                play(server.url)
+                seeks = []
+                for target in (1000,2):
+                    before = len(server.requests)
+                    mpd.command(f'seekcur {target}')
+                    wait_play(minimum=target-.5,maximum=target+5)
+                    requests = server.requests[before:]
+                    assert any(request['range'] and request['start']>0 for request in requests), \
+                        f'seek to {target}s did not reopen HTTP with a nonzero Range'
+                    seeks.append({'target_seconds':target,'http_requests':list(requests)})
+                mpd.command('stop')
+                report['checks'].append({'case':'uncached HTTP Range seeks','passed':True,
+                                         'fixture_bytes':len(data),'seeks':seeks,
+                                         'http_requests':server.requests})
+                print('Uncached HTTP MP3 forward/backward Range seeks passed',flush=True)
+            finally:
+                server.close()
             report['passed'] = True
         finally:
             subprocess.run([args.engine,'rm','-f',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)

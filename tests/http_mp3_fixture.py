@@ -23,6 +23,25 @@ def silent_mp3(seconds=20, rate=44100, vbr=False, id3_bytes=0):
     return prefix + b''.join(frames)
 
 
+class LargeMP3:
+    """Expose a known-length CBR stream larger than MPD's 16 MiB file cache."""
+    def __init__(self):
+        self.frame = (0xfffb9064).to_bytes(4,'big') + bytes(417-4)
+        self.frames = 50000
+
+    def __len__(self):
+        return len(self.frame)*self.frames
+
+    def __getitem__(self, key):
+        start,end,step = key.indices(len(self))
+        if step != 1 or end-start > 65536:
+            raise ValueError('large MP3 reads must be bounded contiguous slices')
+        size = max(0,end-start)
+        offset = start % len(self.frame)
+        repeats = math.ceil((offset+size)/len(self.frame))
+        return (self.frame*repeats)[offset:offset+size]
+
+
 class MP3Server:
     def __init__(self, data, seekable=True, extension=True):
         self.requests = []

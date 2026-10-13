@@ -2,10 +2,31 @@
 import unittest
 import urllib.error
 import urllib.request
-from http_mp3_fixture import MP3Server, silent_mp3
+from http_mp3_fixture import LargeMP3, MP3Server, silent_mp3
 
 
 class Tests(unittest.TestCase):
+    def test_large_fixture_is_generated_in_bounded_slices_and_serves_far_ranges(self):
+        data = LargeMP3()
+        self.assertGreater(len(data),16*1024*1024)
+        self.assertLess(len(data.frame),1024)
+        self.assertEqual(data[410:430],(data.frame*2)[410:430])
+        self.assertEqual(data[len(data)-10:len(data)],data.frame[-10:])
+        with self.assertRaises(ValueError):data[:]
+        server = MP3Server(data)
+        http = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        try:
+            start = 17*1024*1024+123
+            request = urllib.request.Request(server.url,headers={'Range':f'bytes={start}-{start+999}'})
+            with http.open(request,timeout=3) as response:
+                self.assertEqual(response.status,206)
+                self.assertEqual(response.headers['Content-Length'],'1000')
+                self.assertEqual(response.headers['Content-Range'],f'bytes {start}-{start+999}/{len(data)}')
+                self.assertEqual(response.read(),data[start:start+1000])
+            self.assertEqual(server.requests,[{'start':start,'range':True}])
+        finally:
+            server.close()
+
     def test_frames_are_valid_layer_three_and_variable_bitrate(self):
         for vbr in (False,True):
             data = silent_mp3(seconds=1,vbr=vbr,id3_bytes=16384)

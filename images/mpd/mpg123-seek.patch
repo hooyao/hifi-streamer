@@ -1,0 +1,30 @@
+SPDX-License-Identifier: GPL-2.0-or-later
+
+--- a/src/decoder/plugins/Mpg123DecoderPlugin.cxx
++++ b/src/decoder/plugins/Mpg123DecoderPlugin.cxx
+@@ -4,0 +5 @@
++#include "Mpg123SeekOffset.hxx"
+@@ -113,3 +113,0 @@
+-	if (whence != SEEK_SET)
+-		return -1;
+-
+@@ -117,2 +115,10 @@
+-		iohandle.is.LockSeek(offset);
+-		return offset;
++		std::unique_lock lock{iohandle.is.mutex};
++		const bool known_size = iohandle.is.KnownSize();
++		const auto target = Mpg123SeekOffset(iohandle.is.GetOffset(),
++			known_size ? iohandle.is.GetSize() : 0, known_size,
++			offset, whence);
++		if (!target)
++			return -1;
++		if (static_cast<InputStream::offset_type>(*target) != iohandle.is.GetOffset())
++			iohandle.is.Seek(lock, static_cast<InputStream::offset_type>(*target));
++		return *target;
+@@ -559,0 +566,2 @@
++static const char *const mpg123_mime_types[] = { "audio/mpeg", nullptr };
++
+@@ -565 +573,2 @@
+-	.WithSuffixes(mpg123_suffixes);
++	.WithSuffixes(mpg123_suffixes)
++	.WithMimeTypes(mpg123_mime_types);

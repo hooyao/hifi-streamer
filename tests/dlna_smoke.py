@@ -15,6 +15,7 @@ import urllib.parse
 import urllib.request
 import wave
 import xml.etree.ElementTree as ET
+from http_mp3_fixture import silent_mp3
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -161,6 +162,10 @@ def main():
                 flac = wav.with_suffix('.flac')
                 subprocess.run(['flac','--silent','--force',str(wav),'-o',str(flac)],check=True)
                 formats.append(flac)
+                if rate in (44100,48000):
+                    mp3 = wav.with_suffix('.mp3')
+                    mp3.write_bytes(silent_mp3(rate=rate,id3_bytes=16384))
+                    formats.append(mp3)
                 for path in formats:
                     uri = f'http://{host}:{server.server_port}/{path.name}'
                     soap(control,'Stop')

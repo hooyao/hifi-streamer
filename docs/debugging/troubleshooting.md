@@ -51,6 +51,8 @@ Podman 4.3 rejects uid/gid options on the tested tmpfs mount. The cache uses a d
 
 ## Protocol and update failures
 
+Valid HTTP MP3 accompanied by `cannot seek!`, `mpg123_getformat() failed` and `unrecognized file` can indicate a decoder callback defect rather than a corrupt file or NAS authentication failure. Confirm HTTP 200/206, audio/mpeg and MPEG frame headers without publishing temporary media URLs. The patched mpg123 callback accepts bounded SET/CUR/known-END positions and registers audio/mpeg. Qualify both file decoding and HTTP transport; a plugin appearing in `decoders` alone does not establish stream compatibility. Preserve the 16MiB implicit-cache and 128MiB container budgets.
+
 For cgroup OOM or increasing HTTP playback memory, see [MPD memory budgets](mpd-memory.md).
 
 HTTP seek requires Range support from the media source. Renderer capabilities must match actual output controls; do not add unsupported MPD parameters such as close_on_pause.

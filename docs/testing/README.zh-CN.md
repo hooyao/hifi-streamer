@@ -14,6 +14,8 @@ git diff --check
 
 ## 硬件集成
 
+原生 MPD 镜像使用 `tests/mpd_mp3_ci.py <image>` 测试生成的 MPEG-1 Layer III 静音帧。先用本地解码确认夹具有效，再测试 HTTP CBR／VBR、ID3、无扩展名 audio/mpeg 和顺序输入；可定位输入验证前后定位及暂停／恢复。构建阶段还编译 `images/mpd/seek-test.cxx`，对解码器实际使用的偏移计算函数测试负目标、溢出及未知结束位置。无需用户媒体文件或额外编解码器。实机 DLNA smoke 在 PCM／FLAC 和已验证 DoP 之外，增加 44.1／48kHz 带 ID3 的 MP3。
+
 `tests/output_volume_device_smoke.py --report <私有报告路径>` 验证无密码状态访问、全新宿主单位增益初始化、0%／60% 调整、拒绝 101%、agent／WirePlumber 重启后保留音量、音源设置独立及恢复原有宿主增益。测试会短暂调整软件音量并重启这些用户服务，请保持硬件低音量。单元测试另行覆盖不可用／过期路由及调整隔离。
 
 输出健康状态及有界修复行为见[自动音频恢复](../debugging/audio-recovery.zh-CN.md)。

@@ -48,6 +48,15 @@ jobs:
       - name: Bound MPD HTTP playback memory
         if: matrix.component == 'mpd'
         run: python3 tests/mpd_memory_ci.py hifi-mpd:test
+      - name: MP3 HTTP playback and seek regression
+        if: matrix.component == 'mpd'
+        run: python3 tests/mpd_mp3_ci.py hifi-mpd:test --report mp3-report.json
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.component == 'mpd'
+        with:
+          name: mp3-${{ matrix.arch }}
+          path: mp3-report.json
+          retention-days: 3
       - name: Export validated ARM64 image for device bootstrap
         if: matrix.arch == 'arm64'
         run: docker save hifi-${{ matrix.component }}:test | gzip -1 > image-arm64.tar.gz

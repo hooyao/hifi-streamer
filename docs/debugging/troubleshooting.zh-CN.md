@@ -51,6 +51,8 @@ Podman4.3不接受已测tmpfs挂载中的uid/gid参数。缓存使用隔离容�
 
 ## 协议与更新失败
 
+有效 HTTP MP3 同时出现 `cannot seek!`、`mpg123_getformat() failed` 和 `unrecognized file`，可能是解码器回调缺陷，而非文件损坏或 NAS 认证失败。核对 HTTP 200／206、audio/mpeg 和 MPEG 帧头，避免公开临时媒体 URL。修正后的 mpg123 回调支持受限的 SET／CUR／已知 END 定位，并注册 audio/mpeg。需同时验证文件解码和 HTTP 传输；`decoders` 中出现插件并不能证明流兼容性。保留 16MiB 隐式缓存和 128MiB 容器预算。
+
 Cgroup OOM或HTTP播放内存增长见[MPD内存预算](mpd-memory.zh-CN.md)。
 
 HTTP定位要求音频源支持Range。Renderer能力必须与输出控制一致，不添加close_on_pause等不支持的MPD参数。

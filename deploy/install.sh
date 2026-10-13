@@ -5,6 +5,9 @@ repo=$(pwd)
 python3 "$repo/deploy/preflight.py"
 install -d "$HOME/.config/pipewire/pipewire.conf.d"
 install -m 644 "$repo/modules/audio-runtime/10-rates.conf" "$HOME/.config/pipewire/pipewire.conf.d/hifi-rates.conf"
+install -d "$HOME/.config/wireplumber/main.lua.d" "$HOME/.config/wireplumber/wireplumber.conf.d"
+install -m 644 "$repo/modules/audio-runtime/51-volume.lua" "$HOME/.config/wireplumber/main.lua.d/51-hifi-volume.lua"
+install -m 644 "$repo/modules/audio-runtime/51-volume.conf" "$HOME/.config/wireplumber/wireplumber.conf.d/51-hifi-volume.conf"
 install -d -m 700 "$HOME/.config/hifi-streamer" "$HOME/.config/containers" "$HOME/.config/systemd/user"
 # Defaults are local to this rootless account; no rootful management socket is exposed.
 cat > "$HOME/.config/containers/containers.conf" <<'EOF'
@@ -57,4 +60,4 @@ WantedBy=timers.target
 EOF
 systemctl --user daemon-reload
 systemctl --user enable --now hifi-update-check.timer
-echo 'Admin password is stored in ~/.config/hifi-streamer/admin.json (private file).'
+echo 'Device control is available without a password after image deployment.'

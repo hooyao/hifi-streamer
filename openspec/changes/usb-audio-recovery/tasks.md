@@ -9,7 +9,7 @@
 
 - [x] 2.1 Add the cancellable recovery worker, three-observation debounce, deadlines/backoff and persistent global attempt budget; test flapping, worker cancellation, clock/boot changes, budget exhaustion and responsive status during blocked repair; document stages and limits in both product-documentation languages.
 - [x] 2.2 Serialize configuration, updates and recovery through a shared maintenance lock without holding the status lock during subprocesses; test contention, stale config/device work, update rollback preservation and immediate ownership revocation on device loss.
-- [x] 2.3 Add the authenticated rate-limited retry endpoint and UI action; test login/Origin/CSRF, forbidden arbitrary arguments, missing-hardware behavior and bounded manual retry; document operator recovery in both product-documentation languages.
+- [x] 2.3 Add the rate-limited retry endpoint and UI action; test password-free access/Origin/CSRF, forbidden arbitrary arguments, missing-hardware behavior and bounded manual retry; document operator recovery in both product-documentation languages.
 
 ## 3. Service, route and playback restoration
 

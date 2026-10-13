@@ -10,9 +10,11 @@ openspec validate --all --strict --no-interactive
 git diff --check
 ```
 
-Unit tests cover configuration validation, credentials redaction, HTTP auth/CSRF, module registry, third-source arbitration, stale events, release failure, hotplug state, WebSocket framing, log/cache bounds and update rollback/preflight.
+Unit tests cover configuration validation, credentials redaction, password-free HTTP access/Origin/CSRF and host-volume isolation, module registry, third-source arbitration, stale events, release failure, hotplug state, WebSocket framing, log/cache bounds and update rollback/preflight.
 
 ## Hardware integration
+
+`tests/output_volume_device_smoke.py --report <private-report-path>` qualifies password-free status, fresh host-unity initialization, 0%/60% adjustments, rejection of 101%, agent/WirePlumber restart persistence, source-setting independence and restoration of the prior host gain. It briefly changes software volume and restarts those user services; keep hardware volume low. The unit tests separately cover unavailable/stale routes and adjustment isolation.
 
 See [automatic audio recovery](../debugging/audio-recovery.md) for output-health states and bounded repair behavior.
 
@@ -46,7 +48,7 @@ On a dedicated configured host, the following temporarily replaces application c
 python3 tests/clean_install_smoke.py --replace-app-state --dsd --report .local-build/clean-install.json
 ```
 
-Acceptance includes an empty configuration, unconfigured optional Spotify, web authentication, missing selected hardware, idempotent credential preservation, first API DAC selection, newly loaded audio units, unchanged web process and actual DLNA formats/controls. A passed report also needs `private_state_restored: true`; keep failures distinct from successful restore. First-start discovery retries for a bounded period and skips unreachable/stale advertisements.
+Acceptance includes an empty configuration, unconfigured optional Spotify, password-free web status, missing selected hardware, idempotent configuration preservation, first API DAC selection, newly loaded audio units, unchanged web process and actual DLNA formats/controls. A passed report also needs `private_state_restored: true`; keep failures distinct from successful restore. First-start discovery retries for a bounded period and skips unreachable/stale advertisements.
 
 ## Decoded source-rate following
 

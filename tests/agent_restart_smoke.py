@@ -35,20 +35,11 @@ def main():
     before = json.loads(path.read_text())['attempts'] if path.exists() else []
     player.client.close()
     subprocess.run(['systemctl','--user','restart','hifi-agent'],check=True,timeout=30)
-    cookie = ''
 
     def status():
-        nonlocal cookie
         connection = Connection('localhost')
         headers = {'Host':'localhost','Origin':'http://localhost','Content-Type':'application/json'}
-        connection.request('POST','/api/login',json.dumps({'password':config.password()}),headers)
-        response = connection.getresponse()
-        assert response.status==200
-        response.read()
-        cookie = response.getheader('Set-Cookie')
-        connection.close()
-        connection = Connection('localhost')
-        connection.request('GET','/api/status',headers={'Cookie':cookie})
+        connection.request('GET','/api/status',headers=headers)
         response = connection.getresponse()
         assert response.status==200
         data = json.loads(response.read())
@@ -73,7 +64,7 @@ def main():
     assert after==before, 'healthy restart spent recovery budget'
     connection = Connection('localhost')
     connection.request('POST','/api/recovery/retry','{}',
-        {'Host':'localhost','Origin':'http://localhost','Cookie':cookie,
+        {'Host':'localhost','Origin':'http://localhost',
          'Content-Type':'application/json','X-CSRF-Token':data['csrf']})
     response = connection.getresponse()
     assert response.status==409, 'healthy retry endpoint accepted a disruption'

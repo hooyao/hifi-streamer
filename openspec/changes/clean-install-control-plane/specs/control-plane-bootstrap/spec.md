@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Provide authenticated configuration and actionable output status on a fresh host before a usable audio device has been selected.
+Provide password-free configuration and actionable output status on a fresh host before a usable audio device has been selected.
 
 ## ADDED Requirements
 
@@ -12,15 +12,15 @@ After validated images are recorded and deployment is applied, the system SHALL 
 
 #### Scenario: Fresh installation with no selected DAC
 - **WHEN** deployment is applied with no selected DAC
-- **THEN** the web login is available, authenticated status reports `dac_unconfigured`, and no audio service is started
+- **THEN** the web is available, status reports `dac_unconfigured`, and no audio service is started
 - **AND** status lists required DLNA and optional Spotify with truthful unknown/unconfigured states before any player polling
 
 #### Scenario: Selected DAC is missing
 - **WHEN** deployment is applied with a persisted selection whose DAC is absent
-- **THEN** authenticated status reports `dac_missing`, the web remains available, and audio services remain stopped
+- **THEN** status reports `dac_missing`, the web remains available, and audio services remain stopped
 
 #### Scenario: Configure available hardware
-- **WHEN** an operator selects an available DAC through the authenticated configuration page
+- **WHEN** an operator selects an available DAC through the password-free configuration page
 - **THEN** the audio services are generated and output becomes ready without requiring a manual web service restart
 
 #### Scenario: Transient discovery failure with previously enabled audio

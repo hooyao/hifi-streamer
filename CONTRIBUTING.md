@@ -55,6 +55,7 @@ Implement the tasks, add meaningful tests and update affected documentation. Mar
 
 ```sh
 python3 -m unittest discover -s tests -v
+node tests/web_volume_smoke.js
 openspec validate --all --strict --no-interactive
 git diff --check
 ```

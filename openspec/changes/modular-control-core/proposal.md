@@ -7,7 +7,7 @@ Provide a shared source contract and lightweight control plane so new services c
 ## What Changes
 
 - Versioned module declarations, isolated adapters and uniform snapshots.
-- Stable USB DAC binding, persisted configuration and authenticated web/API access.
+- Stable USB DAC binding, persisted configuration and same-origin CSRF-protected web/API controls.
 - Automated failure and unknown-state tests using fake adapters.
 
 ## Capabilities

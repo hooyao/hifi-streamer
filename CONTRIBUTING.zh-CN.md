@@ -55,6 +55,7 @@ openspec instructions apply --change <change-name>
 
 ```sh
 python3 -m unittest discover -s tests -v
+node tests/web_volume_smoke.js
 openspec validate --all --strict --no-interactive
 git diff --check
 ```

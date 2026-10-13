@@ -29,7 +29,7 @@ The system SHALL reconcile a reappearing configured DAC using its current device
 - **THEN** stale mappings and events are retired before readiness is restored
 
 ### Requirement: Bounded staged repair
-The system SHALL repair failed services and stale routes using the smallest affected scope first. Recovery SHALL have finite timeouts, backoff and a persistent automatic restart budget of at most three disruptive attempts in ten minutes across device incarnations. Exhaustion SHALL report `recovery_exhausted`; a rate-limited authenticated retry SHALL permit one bounded attempt.
+The system SHALL repair failed services and stale routes using the smallest affected scope first. Recovery SHALL have finite timeouts, backoff and a persistent automatic restart budget of at most three disruptive attempts in ten minutes across device incarnations. Exhaustion SHALL report `recovery_exhausted`; a rate-limited same-origin CSRF-protected retry SHALL permit one bounded attempt.
 
 #### Scenario: Host route missing
 - **WHEN** a usable DAC exists but its host audio route remains missing

@@ -38,6 +38,9 @@ class Runtime:
         self.card = None
         self.lock = threading.RLock()
         self.stop = threading.Event()
+        self.volume = None
+        self.volume_revision = 0
+        self.volume_lock = threading.Lock()
         self.recovery = Recovery(self)
         self.core.valid_output = lambda: self.recovery.phase == 'ready'
 
@@ -74,7 +77,76 @@ class Runtime:
                 value.update(health='unreachable', playback='unknown')
         return {'devices':devices, 'config':self.config.public(),
                 'sources':snapshots, 'output':{'owner':self.core.owner, 'state':self.core.state,
-                                                        **self.recovery.status()}}
+                                                        **self.recovery.status(),
+                                                        'volume':self.volume_status(devices)}}
+
+    def volume_status(self, devices):
+        value = self.volume
+        selected = next((d for d in devices if d['id'] == self.config.data['dac']), None)
+        if (value and selected and value['dac'] == selected['id'] and value['card'] == selected['card']
+                and value['generation'] == self.recovery.generation and time.monotonic()-value['observed_at'] <= 10
+                and self.recovery.phase == 'ready'):
+            return {'available':True, 'percent':value['percent'], 'mute':value['mute']}
+        return {'available':False, 'percent':None, 'mute':None}
+
+    def observe_volume(self):
+        with self.volume_lock:
+            revision, generation = self.volume_revision, self.recovery.generation
+        value = None
+        try:
+            selected = self.selected()
+            if selected and self.recovery.phase == 'ready':
+                value = {**self.hardware.volume_status(), 'dac':selected['id'], 'card':selected['card'],
+                         'generation':generation, 'observed_at':time.monotonic()}
+        except Exception:
+            pass
+        with self.volume_lock:
+            if revision == self.volume_revision and generation == self.recovery.generation:
+                self.volume = value
+
+    def initialize_output_volume(self):
+        if self.config.data.get('host_volume_initialized', True):
+            return
+        try:
+            self.hardware.sink()
+        except RuntimeError:
+            if self.adapters['spotify'].configured():
+                raise
+            return
+        token = self.recovery.generation
+        self.hardware.set_volume(100)
+        if token != self.recovery.generation:
+            raise RuntimeError('Selected DAC changed during volume initialization')
+        self.config.complete_volume_initialization()
+
+    def set_output_volume(self, data):
+        from .service_lock import maintenance_lock
+        if (set(data) != {'percent'} or type(data['percent']) is not int
+                or not 0 <= data['percent'] <= 100):
+            raise ValueError('percent must be an integer from 0 to 100; no other arguments are accepted')
+        with maintenance_lock(self.config.directory, blocking=False), self.lock:
+            self.config.reload()
+            if self.recovery.phase != 'ready' or not self.selected():
+                raise RuntimeError('Selected DAC output is unavailable')
+            token = self.recovery.generation
+            with self.volume_lock:
+                self.volume_revision += 1
+                self.volume = None
+            try:
+                self.hardware.set_volume(data['percent'])
+            finally:
+                # Reject observations started during the write, including failed writes.
+                with self.volume_lock:
+                    self.volume_revision += 1
+                    self.volume = None
+            if token != self.recovery.generation:
+                raise RuntimeError('Selected DAC changed during volume adjustment')
+            self.config.complete_volume_initialization()
+            self.observe_volume()
+            result = self.volume_status(self.devices())
+            if not result['available']:
+                raise RuntimeError('Selected DAC volume cannot be confirmed')
+            return result
 
     def apply(self, changes):
         from .service_lock import maintenance_lock
@@ -193,8 +265,14 @@ class Runtime:
                     LOG.warning('hardware observation failed')
             self.stop.wait(1)
 
+    def volume_loop(self):
+        while not self.stop.is_set():
+            self.observe_volume()
+            self.stop.wait(2)
+
     def loop(self):
         threading.Thread(target=self.hardware_loop, daemon=True).start()
+        threading.Thread(target=self.volume_loop, daemon=True).start()
         failures = 0
         while not self.stop.is_set():
             try:

@@ -23,6 +23,7 @@ jobs:
           node-version: '22'
       - run: npm install -g @fission-ai/openspec@1.14.1
       - run: python -m unittest discover -s tests -v
+      - run: node tests/web_volume_smoke.js
       - run: openspec validate --all --strict --no-interactive
       - name: Check patch whitespace
         env:

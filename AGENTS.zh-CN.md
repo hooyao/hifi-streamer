@@ -19,7 +19,7 @@ HiFi Streamer 是模块化 Linux 网络音频接收端。DLNA 是必备音源；
 | 音源注册 | 内置声明与接口验证 | [注册器](modules/audio-agent/hifi/registry.py), [声明](modules/sources/) |
 | DLNA | 必备接收端与ALSA直出 | [声明](modules/sources/dlna/module.json), [适配器](modules/audio-agent/hifi/mpd.py), [MPD镜像](images/mpd/), [upmpdcli镜像](images/upmpdcli/) |
 | Spotify | 可选Soloist控制与Pulse输出 | [声明](modules/sources/spotify/module.json), [适配器](modules/audio-agent/hifi/soloist.py), [WebSocket](modules/audio-agent/hifi/websocket.py), [镜像](images/soloist/) |
-| 配置与API | 持久化配置、登录与认证控制 | [配置](modules/audio-agent/hifi/config.py), [API](modules/audio-agent/hifi/api.py) |
+| 配置与API | 持久化配置、输出音量与设备控制 | [配置](modules/audio-agent/hifi/config.py), [API](modules/audio-agent/hifi/api.py) |
 | 网页 | 设备/音源配置与更新控制 | [页面](modules/web/index.html), [代理](modules/web/nginx.conf), [镜像](images/web/) |
 | 安装 | 宿主依赖与rootless服务生成 | [宿主准备](deploy/host-setup.sh), [账号预检](deploy/preflight.py), [账号安装](deploy/install.sh), [服务生成器](deploy/manage.py) |
 | 更新与维护 | 候选观察、预检与回滚 | [事务](deploy/update.py), [观察](deploy/check-updates.py), [维护](modules/audio-agent/hifi/maintenance.py) |

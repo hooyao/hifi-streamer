@@ -46,7 +46,7 @@ sudo sh deploy/host-setup.sh
 
 Continue with [installation and configuration](docs/OPERATIONS.md) to provision the service account, load immutable images, select the DAC and start the services. Image-registry access must be verified before installation; an OCI export from a successful build is an alternative bootstrap input.
 
-Open `http://<device-address>:8080` after deployment. Use the generated device-admin password, configure the DAC and enable Spotify only when its API key is available. Playback volume is controlled by the source and DAC; verify both before listening.
+Open `http://<device-address>:8080` after deployment. Configure the DAC directly and enable Spotify only when its API key is available. This development release has no control-plane password; clients on the reachable LAN can operate it. Fresh host output and Soloist startup default to 100%; adjust host volume on the page or listening volume on the DAC/amplifier. DLNA direct output bypasses host software gain.
 
 ## Audio paths
 

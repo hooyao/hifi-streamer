@@ -1,12 +1,12 @@
 import copy
 import json
 import os
-import secrets
 from pathlib import Path
 
 DEFAULT = {'version': 1, 'dac': None, 'mode': 'auto', 'priority': 'dlna',
+           'host_volume_initialized': False,
            'sources': {'dlna': {'enabled': True, 'name': 'HiFi Streamer'},
-                       'spotify': {'enabled': False, 'name': 'HiFi Streamer Spotify'}}}
+                       'spotify': {'enabled': False, 'name': 'HiFi Streamer Spotify', 'initial_volume': 100}}}
 
 
 def atomic_json(path, data):
@@ -26,14 +26,8 @@ class Config:
         self.directory = Path(directory)
         self.path = self.directory / 'config.json'
         self.data = json.loads(self.path.read_text()) if self.path.exists() else copy.deepcopy(DEFAULT)
-        self.auth = self.directory / 'admin.json'
         if not self.path.exists():
             atomic_json(self.path, self.data)
-        if not self.auth.exists():
-            atomic_json(self.auth, {'password': secrets.token_urlsafe(24)})
-
-    def password(self):
-        return json.loads(self.auth.read_text())['password']
 
     def has_key(self):
         return (self.directory / 'spotify-key').exists()
@@ -83,4 +77,11 @@ class Config:
         return self.public()
 
     def public(self):
-        return {**copy.deepcopy(self.data), 'spotify_key_set': self.has_key()}
+        result = copy.deepcopy(self.data)
+        result.pop('host_volume_initialized', None)
+        return {**result, 'spotify_key_set': self.has_key()}
+
+    def complete_volume_initialization(self):
+        self.reload()
+        self.data['host_volume_initialized'] = True
+        atomic_json(self.path, self.data)

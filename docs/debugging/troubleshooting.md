@@ -17,7 +17,7 @@ A playing UI does not prove hardware output. Confirm the selected USB DAC is pre
 
 ## Low volume or unexpected rate
 
-Check source session volume, sink-input volume, sink volume and hardware mixer. Spotify initial_volume defaults to 40%; a sink at 40% adds about 23.9dB attenuation. Lower hardware listening volume before correcting gain.
+Check source session volume, sink-input volume, sink volume and hardware mixer. Fresh Soloist initial_volume and host output default to 100%; an existing sink at 40% still adds about 23.9dB attenuation. Inspect the actual host-volume readout in the control plane; muted or unavailable output is shown explicitly. Lower hardware listening volume before correcting gain.
 
 Check `pw-metadata -n settings 0` and the installed allowed-rates configuration. A 44.1kHz stream at 48kHz indicates resampling. DSD64 DoP uses 176.4kHz transport; do not interpret it as a Spotify format.
 

@@ -3,11 +3,9 @@ import json
 import secrets
 import socketserver
 import threading
-import time
 import subprocess
 from pathlib import Path
 from .config import atomic_json
-from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler
 
 
@@ -29,8 +27,7 @@ class UnixServer(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
 
 
 def handler(runtime):
-    sessions = {}
-    failures = {}
+    csrf = secrets.token_urlsafe(32)
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = 'HTTP/1.0'
@@ -42,26 +39,14 @@ def handler(runtime):
         def log_message(self, *args):
             pass
 
-        def reply(self, code, data, cookie=None):
+        def reply(self, code, data):
             encoded = json.dumps(data).encode()
             self.send_response(code)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Cache-Control', 'no-store')
             self.send_header('Content-Length', str(len(encoded)))
-            if cookie:
-                self.send_header('Set-Cookie', cookie)
             self.end_headers()
             self.wfile.write(encoded)
-
-        def session(self):
-            cookie = SimpleCookie()
-            try:
-                cookie.load(self.headers.get('Cookie', ''))
-                token = cookie['hifi_session'].value
-            except (KeyError, ValueError):
-                return None
-            value = sessions.get(token)
-            return value if value and value['expires'] > time.time() else None
 
         def origin_ok(self):
             origin = self.headers.get('Origin', '')
@@ -69,11 +54,8 @@ def handler(runtime):
             return bool(host) and origin in ('http://' + host, 'https://' + host)
 
         def do_GET(self):
-            session = self.session()
-            if not session:
-                return self.reply(401, {'error':'login required'})
             if self.path == '/api/status':
-                return self.reply(200, {**runtime.status(), 'csrf':session['csrf']})
+                return self.reply(200, {**runtime.status(), 'csrf':csrf})
             if self.path == '/api/diagnostics':
                 path = runtime.config.directory / 'state/agent.log'
                 text = ''
@@ -99,29 +81,15 @@ def handler(runtime):
                     raise ValueError()
             except (ValueError, json.JSONDecodeError):
                 return self.reply(400, {'error':'invalid JSON'})
-            if self.path == '/api/login':
-                identity = self.headers.get('X-Real-IP', 'local')
-                now = time.time()
-                recent = [t for t in failures.get(identity, []) if t > now - 60]
-                if len(recent) >= 5:
-                    return self.reply(429, {'error':'try later'})
-                password = data.get('password', '')
-                if not isinstance(password, str) or not hmac.compare_digest(password, runtime.config.password()):
-                    failures[identity] = recent + [now]
-                    if len(failures) > 256:
-                        failures.clear()
-                    return self.reply(401, {'error':'invalid password'})
-                for key in list(sessions):
-                    if sessions[key]['expires'] < now:
-                        del sessions[key]
-                if len(sessions) >= 32:
-                    sessions.pop(next(iter(sessions)))
-                token = secrets.token_urlsafe(32)
-                sessions[token] = {'csrf':secrets.token_urlsafe(24), 'expires':now + 3600}
-                return self.reply(200, {'csrf':sessions[token]['csrf']}, f'hifi_session={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=3600')
-            session = self.session()
-            if not session or not hmac.compare_digest(self.headers.get('X-CSRF-Token', ''), session['csrf']):
-                return self.reply(403, {'error':'invalid session or CSRF token'})
+            if not hmac.compare_digest(self.headers.get('X-CSRF-Token', ''), csrf):
+                return self.reply(403, {'error':'invalid CSRF token'})
+            if self.path == '/api/output/volume':
+                try:
+                    return self.reply(200, runtime.set_output_volume(data))
+                except ValueError as error:
+                    return self.reply(400, {'error':str(error)})
+                except Exception:
+                    return self.reply(409, {'error':'output unavailable or busy; refresh status before retrying'})
             if self.path == '/api/config':
                 try:
                     return self.reply(200, runtime.apply(data))

@@ -100,10 +100,16 @@ class BootstrapTests(unittest.TestCase):
                 subprocess_run.return_value.returncode = 1
                 manage.apply(maintenance_held=True)
                 self.assertIn('/dev/snd/pcmC2D0p', (root/'units/hifi-mpd.service').read_text())
+                self.assertIn('INITIAL_VOLUME=100', (root/'units/hifi-soloist.service').read_text())
                 run.assert_any_call('systemctl','--user','enable','--now','hifi-mpd','hifi-upmpdcli')
                 subprocess_run.assert_any_call(
                     ['systemctl','--user','reset-failed','hifi-mpd','hifi-upmpdcli'],
                     check=False, stderr=manage.subprocess.DEVNULL)
+                config.reload()
+                config.data['sources']['spotify']['initial_volume'] = 35
+                manage.atomic_json(config.path, config.data)
+                manage.apply(maintenance_held=True)
+                self.assertIn('INITIAL_VOLUME=35', (root/'units/hifi-soloist.service').read_text())
 
 
 if __name__ == '__main__':

@@ -51,7 +51,7 @@ python3 deploy/manage.py record-images
 python3 deploy/manage.py apply
 ```
 
-打开 `http://<device-address>:8080`，使用私有配置中生成的管理密码登录，在 DAC 可用后选择设备。尚未选择时报告 `dac_unconfigured`；已选设备缺失时报告 `dac_missing`。部署先启动网页再发现硬件，sysfs 暂时读取失败也不会阻止网页启动。没有可用设备时，停止全部音频服务并禁用已有音频单元，避免重启后使用过期设备映射。选定硬件重新可用后，恢复流程重新生成并启用音频服务。网页服务保持启用，重启后仍会启动。
+打开 `http://<device-address>:8080`，在 DAC 可用后直接选择设备。尚未选择时报告 `dac_unconfigured`；已选设备缺失时报告 `dac_missing`。部署先启动网页再发现硬件，sysfs 暂时读取失败也不会阻止网页启动。没有可用设备时，停止全部音频服务并禁用已有音频单元，避免重启后使用过期设备映射。选定硬件重新可用后，恢复流程重新生成并启用音频服务。网页服务保持启用，重启后仍会启动。
 
 也可以通过命令行选择稳定 DAC ID：
 
@@ -74,9 +74,9 @@ systemctl --user enable --now hifi-web
 
 ## 网页配置与音量
 
-访问 `http://<device-address>:8080`，从私有 `~/.config/hifi-streamer/admin.json` 读取生成的密码。配置DAC、名称、优先级和音源模式。启用Spotify、填写key后从Spotify app配对。
+访问 `http://<device-address>:8080`，当前开发版不要求密码登录；能访问该地址的客户端均可控制设备，请在预期局域网使用。修改操作仍要求同源 Origin 和 `/api/status` 返回的 CSRF token。旧 `admin.json` 不再使用。配置DAC、名称、优先级和音源模式。启用Spotify、填写key后从Spotify app配对。
 
-DLNA直出没有软件混音器；Spotify会话音量和PipeWire sink音量独立。启动音量默认40%，可配置0–100。单位增益使用100%会话和宿主0dB，再由DAC/功放控制实际听音音量。提高软件音量前先降低硬件音量。
+DLNA直出没有软件混音器；Spotify会话音量和PipeWire sink音量独立。Soloist 启动音量默认100%，可配置0–100。单位增益使用100%会话和宿主0dB，再由DAC/功放控制实际听音音量。提高软件音量前先降低硬件音量。
 
 先用 `pactl list sinks` 和 `pactl list sink-inputs` 检查各层音量：即使 Spotify 显示 100%，DAC sink 为 40% 仍会额外衰减约 −23.9dB。设置单位增益前先暂停播放并降低 DAC/功放音量。Spotify 启动音量设置不会改变宿主 sink。已选择且可用的 DAC，可用以下命令只修改其 PipeWire sink：
 
@@ -90,11 +90,13 @@ run('pactl', 'set-sink-volume', runtime.hardware.sink(), '100%')
 PY
 ```
 
-重启或重新枚举后再次检查 100%/0dB。WirePlumber 通常会持久化该节点音量；应用在恢复期间保留增益，不会自动提高已有输出音量。全新 Spotify 安装还需要在手机设备列表首次配对，API key 本身不等于登录会话。硬件缺失时，保护性恢复可能停止播放器；暂停就绪恢复前，设备广播也可能消失。
+重启或重新枚举后再次检查 100%/0dB。WirePlumber 持久化所选路由音量，恢复流程保留增益。全新应用配置会在第一个 DAC 可用时仅初始化一次 100%，包括安装后才接上的 DAC。重复安装已有配置或恢复输出不会把音量强制重置为 100%。新的 WirePlumber 路由也默认单位增益。全新 Spotify 安装还需要在手机设备列表首次配对，API key 本身不等于登录会话。硬件缺失时，保护性恢复可能停止播放器；暂停就绪恢复前，设备广播也可能消失。
+
+**宿主输出音量**表单立即生效，不重启音源容器。读数来自所选 PipeWire sink，输出不可用时禁用控件，调整时保留静音状态。支持整数 0–100%。`GET /api/status` 返回 `output.volume`；`POST /api/output/volume` 接收 `{"percent":60}`，并要求匹配的 Origin 和状态接口返回的 CSRF token。该控制影响 Spotify 等 PipeWire 音源，不影响 DLNA 的 ALSA 直出。Soloist 启动音量是独立的音源设置。
 
 ## 音源采样率
 
-Spotify 跟随 Soloist 解码后提供的 Pulse PCM，不再使用固定 44.1kHz 策略。通过认证 `/api/status` 中的 `sources.spotify.pcm_rate`、`pactl list sink-inputs` 和所选 `/proc/asound/card<runtime-card>/stream0` 核对。默认时钟/备用输出采样率只是基线，不是强制音源采样率。尚无 PCM 时等待；格式冲突或不支持时上报音源错误，不静默使用固定值。播放格式须同时满足 USB 播放能力和宿主当前允许采样率。
+Spotify 跟随 Soloist 解码后提供的 Pulse PCM，不再使用固定 44.1kHz 策略。通过 `/api/status` 中的 `sources.spotify.pcm_rate`、`pactl list sink-inputs` 和所选 `/proc/asound/card<runtime-card>/stream0` 核对。默认时钟/备用输出采样率只是基线，不是强制音源采样率。尚无 PCM 时等待；格式冲突或不支持时上报音源错误，不静默使用固定值。播放格式须同时满足 USB 播放能力和宿主当前允许采样率。
 
 如果 Soloist 对所有曲目都提供 44.1kHz PCM，输出仍然是 44.1kHz，因为这是可观察到的解码格式。采样率相等不能证明原文件采样率、bit-perfect 或上游没有处理。运行中格式切换可能短暂中断，但不会改变增益/静音。DLNA 继续使用独立的 ALSA 直出路径。
 

@@ -20,7 +20,8 @@ class Tests(unittest.TestCase):
                          'device': {'card': 1}, 'incarnation': ('usb', 1)}
         runtime = SimpleNamespace(config=SimpleNamespace(directory=Path(directory), data={'dac': 'dac'}),
                                   core=SimpleNamespace(owner='spotify', state='active', last_switch=0),
-                                  previous={'spotify': True}, adapters={}, hardware=Mock(), lock=threading.RLock())
+                                  previous={'spotify': True}, adapters={}, hardware=Mock(), lock=threading.RLock(),
+                                  initialize_output_volume=Mock())
         recovery = Recovery(runtime, clock=lambda: self.now, wall=lambda: self.now,
                             observer=lambda _: self.hardware)
         return runtime, recovery
@@ -398,6 +399,7 @@ class Tests(unittest.TestCase):
             recovery.hardware = {'availability':'ready', 'device':{'card':1}}
             runtime.blocked_intents = {'dlna','spotify'}
             with patch.object(recovery,'route'), patch.object(recovery,'playback_health'), \
+                    patch.object(runtime,'initialize_output_volume'), \
                     patch.object(runtime,'selected',return_value={'card':1}):
                 recovery.bootstrap()
                 self.assertEqual(runtime.adapters['dlna'].state,'paused')

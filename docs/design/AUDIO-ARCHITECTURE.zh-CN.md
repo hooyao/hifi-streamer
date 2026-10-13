@@ -42,7 +42,7 @@ Spotify 输出跟随 Soloist 通过 Pulse 实际提供的 PCM 采样率。支持
 
 ## 网络与存储
 
-媒体容器用host网络支持发现；MPD和Soloist控制端点只监听loopback。Web监听8080，session、Origin验证与CSRF保护状态修改。
+媒体容器用host网络支持发现；MPD和Soloist控制端点只监听loopback。Web监听8080，当前开发版没有密码／session 认证，匹配的 Origin 与进程级 CSRF token 保护状态修改。宿主输出增益独立于音源启动音量和 ALSA 直出；缓存所选 sink 的观察值，确保音频操作期间状态查询仍可响应。
 
 配置/秘密使用服务账号私有XDG目录，会话数据与有界缓存分开。秘密运行时注入，不进入镜像。
 

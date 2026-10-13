@@ -20,6 +20,8 @@ Generate valid silent MPEG-1 Layer III frames with zero side information plus bo
 
 An additional known-length 20,850,000-byte CBR fixture exceeds the 16MiB full-file cache cap. Generate only requested chunks from a repeated frame; retain neither the full payload nor a frame list. Forward and backward positioning must advance at the requested time and each produce a new nonzero HTTP Range request, with requests recorded per seek. Small cached fixtures alone cannot qualify this transport path.
 
+Observe both conditions within one finite deadline after each asynchronous seek. MPD may report the requested timestamp before the decoder has issued its HTTP request; require advancement beyond that timestamp rather than immediately inspecting requests or accepting the optimistic position alone.
+
 ## Risks / Trade-offs
 
 - Seek translation can overflow or misuse mutable offsets → lock input state and test boundary/unknown-size requests plus actual HTTP transport.

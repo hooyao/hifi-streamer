@@ -14,6 +14,23 @@ from hifi.mpd import MPD
 from http_mp3_fixture import LargeMP3, MP3Server, silent_mp3
 
 
+def wait_range_seek(mpd, server, target, before, timeout=12):
+    """Wait for transport activity and advancement beyond MPD's optimistic seek time."""
+    deadline = time.monotonic()+timeout
+    while time.monotonic()<deadline:
+        state = mpd.snapshot()
+        if state.get('error'):
+            raise AssertionError('MP3 decoder reported an error during HTTP seek')
+        requests = list(server.requests[before:])
+        elapsed = float(state.get('elapsed') or 0)
+        if (any(request['range'] and request['start']>0 for request in requests)
+                and state['playback']=='playing' and target+.25<=elapsed<target+5):
+            assert state['format'].split(':')[0]=='44100',state['format']
+            return requests
+        time.sleep(.1)
+    raise AssertionError(f'seek to {target}s did not advance with a new nonzero HTTP Range')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('image')
@@ -107,10 +124,7 @@ audio_output {{
                 for target in (1000,2):
                     before = len(server.requests)
                     mpd.command(f'seekcur {target}')
-                    wait_play(minimum=target-.5,maximum=target+5)
-                    requests = server.requests[before:]
-                    assert any(request['range'] and request['start']>0 for request in requests), \
-                        f'seek to {target}s did not reopen HTTP with a nonzero Range'
+                    requests = wait_range_seek(mpd,server,target,before)
                     seeks.append({'target_seconds':target,'http_requests':list(requests)})
                 mpd.command('stop')
                 report['checks'].append({'case':'uncached HTTP Range seeks','passed':True,

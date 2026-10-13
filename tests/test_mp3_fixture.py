@@ -2,10 +2,38 @@
 import unittest
 import urllib.error
 import urllib.request
+from unittest.mock import Mock, patch
 from http_mp3_fixture import LargeMP3, MP3Server, silent_mp3
+from mpd_mp3_ci import wait_range_seek
 
 
 class Tests(unittest.TestCase):
+    def test_seek_waits_for_delayed_range_and_actual_advancement(self):
+        server, mpd = Mock(), Mock()
+        server.requests = [{'start':100,'range':True}]
+        observations = iter((1000,1000,1000.3))
+        def snapshot():
+            elapsed = next(observations)
+            if elapsed==1000.3:
+                server.requests.append({'start':20000000,'range':True})
+            return {'playback':'playing','elapsed':elapsed,'format':'44100:16:2'}
+        mpd.snapshot.side_effect = snapshot
+        with patch('mpd_mp3_ci.time.sleep') as sleep:
+            result = wait_range_seek(mpd,server,1000,1)
+        self.assertEqual(result,[{'start':20000000,'range':True}])
+        self.assertEqual(sleep.call_count,2)
+
+    def test_seek_cannot_pass_without_new_range_or_playback_advancement(self):
+        for requests,elapsed in (([],1000.5),([{'start':1,'range':True}],1000)):
+            with self.subTest(requests=requests,elapsed=elapsed):
+                server,mpd = Mock(),Mock()
+                server.requests = requests
+                mpd.snapshot.return_value = {'playback':'playing','elapsed':elapsed,'format':'44100:16:2'}
+                with patch('mpd_mp3_ci.time.monotonic',side_effect=[0,.1,.2,.4]), \
+                     patch('mpd_mp3_ci.time.sleep'):
+                    with self.assertRaisesRegex(AssertionError,'did not advance with a new nonzero HTTP Range'):
+                        wait_range_seek(mpd,server,1000,0,timeout=.3)
+
     def test_large_fixture_is_generated_in_bounded_slices_and_serves_far_ranges(self):
         data = LargeMP3()
         self.assertGreater(len(data),16*1024*1024)

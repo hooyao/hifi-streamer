@@ -3,6 +3,7 @@ import io
 import unittest
 from unittest.mock import patch
 import dlna_smoke
+import xml.etree.ElementTree as ET
 
 
 class Socket:
@@ -17,6 +18,18 @@ class Socket:
 
 
 class DiscoveryTests(unittest.TestCase):
+    def test_rate_timeout_checks_for_uri_replacement_before_reporting_clock_failure(self):
+        expected = ET.fromstring('<Response><CurrentURI>http://fixture/48000.wav</CurrentURI></Response>')
+        replaced = ET.fromstring('<Response><CurrentURI>http://other/media</CurrentURI></Response>')
+        with patch.object(dlna_smoke,'soap',side_effect=[expected,replaced]), \
+             patch.object(dlna_smoke,'usb_rate',side_effect=AssertionError('wrong rate')), \
+             self.assertRaisesRegex(AssertionError,'replaced'):
+            dlna_smoke.verify_usb_rate('control','http://fixture/48000.wav',1,48000)
+    def test_replaced_uri_is_reported_as_controller_interference(self):
+        response = ET.fromstring('<Response><CurrentURI>http://other/media</CurrentURI></Response>')
+        with patch.object(dlna_smoke,'soap',return_value=response), \
+             self.assertRaisesRegex(AssertionError,'replaced'):
+            dlna_smoke.assert_current_uri('control','http://fixture/48000.wav')
     def test_malformed_location_does_not_hide_valid_renderer(self):
         sock = Socket()
         sock.recv = lambda size: (b'HTTP/1.1 200 OK\r\nLOCATION: http://[broken\r\n'

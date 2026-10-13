@@ -76,6 +76,12 @@ def field(response, name):
     return next(e.text for e in response.iter() if e.tag.split('}')[-1] == name)
 
 
+def assert_current_uri(control, expected):
+    actual = field(soap(control,'GetMediaInfo'),'CurrentURI')
+    if actual != expected:
+        raise AssertionError('Renderer URI was replaced during the exclusive test; stop other controllers')
+
+
 def wait_state(control, state):
     for _ in range(30):
         if field(soap(control, 'GetTransportInfo'), 'CurrentTransportState') == state:
@@ -106,6 +112,17 @@ def usb_rate(card, expected, timeout=6):
             return text
         time.sleep(.2)
     raise AssertionError('USB output did not report expected sample rate: ' + text[:400])
+
+
+def verify_usb_rate(control, uri, card, expected):
+    assert_current_uri(control,uri)
+    try:
+        stream = usb_rate(card,expected)
+    except AssertionError:
+        assert_current_uri(control,uri)
+        raise
+    assert_current_uri(control,uri)
+    return stream
 
 
 def main():
@@ -155,7 +172,7 @@ def main():
         host = route.getsockname()[0]
         route.close()
         try:
-            for rate in (44100,48000,96000):
+            for rate in (44100,48000,88200,96000):
                 wav = Path(directory) / f'{rate}.wav'
                 sample(wav, rate)
                 formats = [wav]
@@ -172,7 +189,7 @@ def main():
                     soap(control,'SetAVTransportURI', CurrentURI=uri,CurrentURIMetaData='')
                     soap(control,'Play',Speed=1)
                     wait_state(control,'PLAYING')
-                    stream = usb_rate(args.card, rate)
+                    stream = verify_usb_rate(control,uri,args.card,rate)
                     soap(control,'Pause')
                     wait_state(control,'PAUSED_PLAYBACK')
                     soap(control,'Seek',Unit='REL_TIME',Target='00:00:05')

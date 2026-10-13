@@ -8,6 +8,12 @@ from mpd_mp3_ci import wait_range_seek
 
 
 class Tests(unittest.TestCase):
+    def test_forward_seek_may_advance_on_existing_http_stream(self):
+        server,mpd = Mock(),Mock()
+        server.requests = []
+        mpd.snapshot.return_value = {'playback':'playing','elapsed':1000.3,'format':'44100:16:2'}
+        self.assertEqual(wait_range_seek(mpd,server,1000,0,require_range=False),[])
+
     def test_seek_waits_for_delayed_range_and_actual_advancement(self):
         server, mpd = Mock(), Mock()
         server.requests = [{'start':100,'range':True}]

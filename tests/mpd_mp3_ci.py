@@ -14,7 +14,7 @@ from hifi.mpd import MPD
 from http_mp3_fixture import LargeMP3, MP3Server, silent_mp3
 
 
-def wait_range_seek(mpd, server, target, before, timeout=12):
+def wait_range_seek(mpd, server, target, before, timeout=12, require_range=True):
     """Wait for transport activity and advancement beyond MPD's optimistic seek time."""
     deadline = time.monotonic()+timeout
     while time.monotonic()<deadline:
@@ -23,12 +23,13 @@ def wait_range_seek(mpd, server, target, before, timeout=12):
             raise AssertionError('MP3 decoder reported an error during HTTP seek')
         requests = list(server.requests[before:])
         elapsed = float(state.get('elapsed') or 0)
-        if (any(request['range'] and request['start']>0 for request in requests)
+        if ((not require_range or any(request['range'] and request['start']>0 for request in requests))
                 and state['playback']=='playing' and target+.25<=elapsed<target+5):
             assert state['format'].split(':')[0]=='44100',state['format']
             return requests
         time.sleep(.1)
-    raise AssertionError(f'seek to {target}s did not advance with a new nonzero HTTP Range')
+    raise AssertionError(f'seek to {target}s did not advance with a new nonzero HTTP Range '
+                         f'(required={require_range}, elapsed={elapsed}, requests={requests})')
 
 
 def main():
@@ -118,18 +119,21 @@ audio_output {{
             data = LargeMP3()
             assert len(data)>16*1024*1024
             server = MP3Server(data)
+            check = {'case':'uncached HTTP Range seeks','passed':False,
+                     'fixture_bytes':len(data),'seeks':[],'http_requests':server.requests}
+            report['checks'].append(check)
             try:
                 play(server.url)
-                seeks = []
                 for target in (1000,2):
                     before = len(server.requests)
                     mpd.command(f'seekcur {target}')
-                    requests = wait_range_seek(mpd,server,target,before)
-                    seeks.append({'target_seconds':target,'http_requests':list(requests)})
+                    # Forward seeks may consume/discard frames on the open HTTP stream.
+                    # Going backwards from the far position must reopen uncached input.
+                    requests = wait_range_seek(mpd,server,target,before,require_range=target==2)
+                    check['seeks'].append({'target_seconds':target,'range_required':target==2,
+                                           'http_requests':list(requests)})
                 mpd.command('stop')
-                report['checks'].append({'case':'uncached HTTP Range seeks','passed':True,
-                                         'fixture_bytes':len(data),'seeks':seeks,
-                                         'http_requests':server.requests})
+                check['passed'] = True
                 print('Uncached HTTP MP3 forward/backward Range seeks passed',flush=True)
             finally:
                 server.close()

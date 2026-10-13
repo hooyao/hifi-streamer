@@ -18,9 +18,9 @@ Keep this as a focused GPL-2.0-or-later patch on the pinned upstream MPD source.
 
 Generate valid silent MPEG-1 Layer III frames with zero side information plus bounded ID3 padding. Validate the fixture through local-file decoding before comparing HTTP failure/success. Native CI exercises CBR/VBR/tagged/extensionless/Range/sequential cases under null output with finite deadlines, then retains the existing HTTP memory gate. Device acceptance uses DLNA SOAP and controller-provided URLs; private media URLs are redacted from output.
 
-An additional known-length 20,850,000-byte CBR fixture exceeds the 16MiB full-file cache cap. Generate only requested chunks from a repeated frame; retain neither the full payload nor a frame list. Forward and backward positioning must advance at the requested time and each produce a new nonzero HTTP Range request, with requests recorded per seek. Small cached fixtures alone cannot qualify this transport path.
+An additional known-length 20,850,000-byte CBR fixture exceeds the 16MiB full-file cache cap. Generate only requested chunks from a repeated frame; retain neither the full payload nor a frame list. Forward and backward positioning must advance past the requested time. The backward seek from 1000s to 2s must produce a new nonzero HTTP Range request; a forward decoder seek can legitimately consume/discard frames on the existing HTTP connection. Record requests per seek and retain the case on failure. Small cached fixtures alone cannot qualify this transport path.
 
-Observe both conditions within one finite deadline after each asynchronous seek. MPD may report the requested timestamp before the decoder has issued its HTTP request; require advancement beyond that timestamp rather than immediately inspecting requests or accepting the optimistic position alone.
+Observe playback advancement and the required backward Range within a finite deadline after each asynchronous seek. MPD may report the requested timestamp before the decoder has issued its HTTP request; require advancement beyond that timestamp rather than immediately inspecting requests or accepting the optimistic position alone.
 
 ## Risks / Trade-offs
 

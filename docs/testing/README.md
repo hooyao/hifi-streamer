@@ -14,9 +14,9 @@ Unit tests cover configuration validation, credentials redaction, password-free 
 
 ## Hardware integration
 
-The MP3 transport regression also serves a known-length 20,850,000-byte stream generated in bounded chunks, larger than MPD's 16MiB full-file cache cap. Each forward/backward seek must produce a new nonzero HTTP Range request and reach the requested playback position; the report records requests per seek.
+The MP3 transport regression also serves a known-length 20,850,000-byte stream generated in bounded chunks, larger than MPD's 16MiB full-file cache cap. Forward/backward seeks must reach and advance past the requested playback position; the backward seek from 1000s to 2s must produce a new nonzero HTTP Range request. A forward decoder seek may validly consume/discard frames on its existing HTTP connection. The report records requests per seek, including the failed case if qualification stops.
 
-Seek qualification waits within a finite deadline for both the new request and playback advancing past the target. MPD can publish the requested timestamp before the asynchronous decoder/HTTP operation completes; that timestamp alone is insufficient.
+Seek qualification waits within a finite deadline for playback advancement and, on the backward seek, the new request. MPD can publish the requested timestamp before the asynchronous decoder/HTTP operation completes; that timestamp alone is insufficient.
 
 Native MPD images run `tests/mpd_mp3_ci.py <image>` against generated silent MPEG-1 Layer III frames. Local decoding validates the fixture before HTTP CBR/VBR, ID3, extensionless audio/mpeg and sequential-input tests; seekable inputs verify forward/backward positioning and pause/resume. The build also compiles `images/mpd/seek-test.cxx` against the decoder's exact offset helper to reject negative/overflow/unknown-end requests. No media files or additional codecs are required. Device DLNA smoke includes tagged MP3 at 44.1/48kHz, PCM/FLAC at 44.1/48/88.2/96kHz and qualified DoP. It verifies the current URI before/after USB checks and after a rate timeout, so another controller replacing the fixture is reported as interference rather than conversion.
 

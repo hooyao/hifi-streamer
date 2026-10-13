@@ -84,19 +84,20 @@ class Runtime:
         value = self.volume
         selected = next((d for d in devices if d['id'] == self.config.data['dac']), None)
         if (value and selected and value['dac'] == selected['id'] and value['card'] == selected['card']
-                and value['generation'] == self.recovery.generation and time.time()-value['observed_at'] <= 10
+                and value['generation'] == self.recovery.generation and time.monotonic()-value['observed_at'] <= 10
                 and self.recovery.phase == 'ready'):
             return {'available':True, 'percent':value['percent'], 'mute':value['mute']}
         return {'available':False, 'percent':None, 'mute':None}
 
     def observe_volume(self):
-        revision, generation = self.volume_revision, self.recovery.generation
+        with self.volume_lock:
+            revision, generation = self.volume_revision, self.recovery.generation
         value = None
         try:
             selected = self.selected()
             if selected and self.recovery.phase == 'ready':
                 value = {**self.hardware.volume_status(), 'dac':selected['id'], 'card':selected['card'],
-                         'generation':generation, 'observed_at':time.time()}
+                         'generation':generation, 'observed_at':time.monotonic()}
         except Exception:
             pass
         with self.volume_lock:
@@ -131,7 +132,13 @@ class Runtime:
             with self.volume_lock:
                 self.volume_revision += 1
                 self.volume = None
-            self.hardware.set_volume(data['percent'])
+            try:
+                self.hardware.set_volume(data['percent'])
+            finally:
+                # Reject observations started during the write, including failed writes.
+                with self.volume_lock:
+                    self.volume_revision += 1
+                    self.volume = None
             if token != self.recovery.generation:
                 raise RuntimeError('Selected DAC changed during volume adjustment')
             self.config.complete_volume_initialization()

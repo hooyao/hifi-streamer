@@ -15,7 +15,7 @@ The agent observes the configured DAC independently of player polling. A live Sp
 | `service_failed` | Service repair failed; inspect bounded diagnostics. |
 | `output_stalled` | Playing source has no physical output after grace; staged repair is requested. |
 | `maintenance_busy` | Update/configuration owns the shared maintenance lock; recovery waits. |
-| `recovery_exhausted` | Automatic restart budget exhausted; inspect the cause and request an manual retry. |
+| `recovery_exhausted` | Automatic restart budget exhausted; inspect the cause and request a manual retry. |
 
 The UI displays persistent output errors. The status endpoint includes `output.hardware`, `output.health` and `output.recovery`. Missing hardware revokes output ownership; software cannot repair an absent cable, unpowered DAC or persistent USB protocol failure.
 

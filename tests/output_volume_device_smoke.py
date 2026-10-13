@@ -15,6 +15,20 @@ from hifi.config import atomic_json
 from hifi.runtime import Runtime
 
 
+def restore_and_report(runtime, original, report, path):
+    """Restore the exact hardware snapshot even when the agent API is unavailable."""
+    report['hardware_volume_restored'] = False
+    try:
+        runtime.hardware.restore_volume(original)
+        report['hardware_volume_restored'] = True
+    except Exception:
+        report['passed'] = False
+        raise
+    finally:
+        path.parent.mkdir(parents=True,exist_ok=True)
+        atomic_json(path,report)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--report',type=Path,required=True)
@@ -46,7 +60,6 @@ def main():
 
     state = ready()
     selected = state['config']['dac']
-    saved = round(state['output']['volume']['percent'])
     saved_mute = state['output']['volume']['mute']
     source_volume = state['config']['sources']['spotify'].get('initial_volume',100)
     runtime = Runtime(REPO,Path.home()/'.config/hifi-streamer')
@@ -94,11 +107,7 @@ def main():
                       volume_zero_and_sixty=True, restart_preserved=True,
                       wireplumber_restart_preserved=True, source_setting_unchanged=True)
     finally:
-        ready()
-        api('output/volume',{'percent':saved})
-        runtime.hardware.restore_volume(original)
-        args.report.parent.mkdir(parents=True,exist_ok=True)
-        atomic_json(args.report,report)
+        restore_and_report(runtime,original,report,args.report)
     print(json.dumps(report))
 
 

@@ -4,6 +4,8 @@ English | [简体中文](OPERATIONS.zh-CN.md)
 
 ## Host setup
 
+For architecture selection, multi-port Ethernet boot policy and clean-host acceptance, see [Linux host installation](installation/linux-host.md).
+
 Use a dedicated service account on systemd Linux. Install dependencies as root, grant audio-device access and enable linger:
 
 ```sh

@@ -64,6 +64,8 @@ python3 tests/source_rate_smoke.py --report .local-build/source-rate.json
 
 This dedicated-host test temporarily stops agent/Soloist, supplies synthetic Pulse PCM through the adapter at 44.1→48→96→44.1kHz, and verifies client format, driver graph, USB, unchanged gain/mute, global force-rate zero, unchanged repair history and rate cleanup. It restores paused services and runs no long-duration soak. It qualifies transport, not Spotify's decoder or encoded catalog formats. Real Soloist acceptance also requires observed PCM/USB agreement, both DLNA handoffs, restart and listening confirmation.
 
+The existing script pauses the real Soloist session first, so complete pairing and start its service before running it. Graph observation uses `pw-top --batch-mode --iterations 3` with an eight-second deadline. Interactive terminal rendering can fail text scraping even when the driver is running. Require a running row for the selected node and retain all observed rates; an empty result, suspended node or monitor failure cannot qualify the graph. Unit tests cover row selection and changing rates, not hardware negotiation.
+
 ## Long-duration test
 
 ```sh

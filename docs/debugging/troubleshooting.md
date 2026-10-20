@@ -19,6 +19,8 @@ A playing UI does not prove hardware output. Confirm the selected USB DAC is pre
 
 Check source session volume, sink-input volume, sink volume and hardware mixer. Fresh Soloist initial_volume and host output default to 100%; an existing sink at 40% still adds about 23.9dB attenuation. Inspect the actual host-volume readout in the control plane; muted or unavailable output is shown explicitly. Lower hardware listening volume before correcting gain.
 
+Confirm the DAC input, output mode, displayed hardware level and amplifier settings when comparing the same recording. Unity controls do not by themselves prove equal decoded loudness; mastering or source processing must be checked separately if the discrepancy remains. Do not amplify above unity to hide an unexplained difference.
+
 Check `pw-metadata -n settings 0` and the installed allowed-rates configuration. A 44.1kHz stream at 48kHz indicates resampling. DSD64 DoP uses 176.4kHz transport; do not interpret it as a Spotify format.
 
 Compare decoded PCM to the running driver graph and USB rate. `clock.rate` metadata is a default preference and can remain 44100 while an allowed driver graph runs at 48000; it is insufficient by itself to diagnose conversion. Use `pw-top`/negotiated node formats and USB feedback. Correct a source `rate_error` or retry a supported format; do not force 44100 to hide it. Rate changes park the stream before closing/reopening the selected sink because a live Pulse client can otherwise keep the DAC occupied.
@@ -51,6 +53,24 @@ Podman 4.3 rejects uid/gid options on the tested tmpfs mount. The cache uses a d
 
 ## Protocol and update failures
 
+### Fixed-level DLNA and controller volume requests
+
+The DLNA path is fixed-level MPD→ALSA hardware output with `mixer_type "none"`. Host PipeWire volume applies to PipeWire sources, not this direct path. Keep listening-level control on the DAC/amplifier.
+
+A controller can still display a slider or send RenderingControl volume requests. `No mixer` is evidence that MPD rejected such a request, not proof that audio gain changed or decoding failed. Do not enable a software/hardware mixer, external-volume script or fake adjustable mixer merely to remove this message. Inspect the advertised actions and actual responses before diagnosing a capability mismatch. Rejected volume control, transport startup and HTTP transfer failures require separate evidence.
+
+### Slow startup or intermittent HTTP audio
+
+The renderer fetches the URL supplied by the controller; music does not necessarily pass through the phone. First distinguish local/NAS sources from Internet CDN sources without exposing the full URL or its signed query.
+
+Record the controller's play/URI request, renderer fetch, HTTP response, decoded PCM and actual USB start as separate timed events. Correlate MPD/upmpdcli errors with that attempt. Small Range requests with fast first-byte timing do not qualify sustained transfer, and one successful replay does not resolve an intermittent failure. A failed decode accompanied by connection timeout or incomplete HTTP response can be an input-transfer failure.
+
+Inspect DNS, the route to the resolved address and any transparent forwarding policy. Addresses in `198.18.0.0/15` can be Fake-IP mappings; that alone does not establish an overseas proxy or a fault. Read the matched rule for the renderer's connection. A DIRECT rule can still involve the side router's forwarding stack. Compare the same source through the normal path and a controlled main-router path, document whether DNS/CDN selection also changed, and restore temporary rules. Do not globally change gateways or DNS during playback or disturb another source's required routing.
+
+Keep temporary media URLs, proxy credentials, packet payloads and other clients' traffic out of published diagnostics. A timing report should contain only selected actions, HTTP status/timing, playback state and redacted errors. Keep unresolved delays separate from confirmed decoder, ownership or hardware failures.
+
+### Decoder and update checks
+
 Valid HTTP MP3 accompanied by `cannot seek!`, `mpg123_getformat() failed` and `unrecognized file` can indicate a decoder callback defect rather than a corrupt file or NAS authentication failure. Confirm HTTP 200/206, audio/mpeg and MPEG frame headers without publishing temporary media URLs. The patched mpg123 callback accepts bounded SET/CUR/known-END positions and registers audio/mpeg. Qualify both file decoding and HTTP transport; a plugin appearing in `decoders` alone does not establish stream compatibility. Preserve the 16MiB implicit-cache and 128MiB container budgets.
 
 Compare the controller's original-file metadata with the actual delivered container and decoded rate. An original high-rate FLAC can arrive as 44.1kHz MP3 when a controller converts it; increasing the DAC rate cannot recover that source. Verify the renderer's protocol advertisement before attributing a controller change to the decoder. Stop all controllers during synthetic tests and reject a fixture URI replaced by another playback request.
@@ -60,3 +80,9 @@ For cgroup OOM or increasing HTTP playback memory, see [MPD memory budgets](mpd-
 HTTP seek requires Range support from the media source. Renderer capabilities must match actual output controls; do not add unsupported MPD parameters such as close_on_pause.
 
 Update candidates require immutable references, compatible metadata, enough space, idle output and a viable rollback version. Use recent bounded logs; do not publish credentials or full inspect output.
+
+## Storage transport errors
+
+ATA `ICRC`, `10B8B`, `LinkSeq`, repeated link resets or automatic SATA speed reduction indicate transport problems requiring investigation. SMART attribute 199 (`UDMA_CRC_Error_Count`) is cumulative: compare its increment across a defined boot or workload, rather than expecting it to reset after reseating a drive. It is distinct from reallocated/pending/uncorrectable media sectors; a passing SMART health flag does not rule out interface errors.
+
+Compare one variable at a time: connector/adapter, board, power supply or memory. A changed count across a physical move does not locate the error to one board. A bounded direct read that succeeds without new errors establishes only that test interval; it cannot certify cold startup or write/flush stability. Preserve error timestamps and counters before changing link power management or forcing a lower SATA rate. Firmware-stage boot failures also require firmware/storage evidence; service restarts cannot repair them.

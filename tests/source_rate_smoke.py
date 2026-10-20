@@ -1,16 +1,10 @@
 """Synthetic decoded-PCM transport acceptance; not a Spotify decoder-rate test."""
 import argparse
 import json
-import os
-import pty
 import re
-import select
-import struct
 import subprocess
 import sys
 import tempfile
-import termios
-import fcntl
 import time
 import wave
 from pathlib import Path
@@ -26,21 +20,13 @@ from dlna_smoke import usb_rate
 
 
 def graph_rates(node):
-    master,slave=pty.openpty()
-    fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',30,200,0,0))
-    process=subprocess.Popen(['pw-top'],stdin=slave,stdout=slave,stderr=slave,
-                             env={**os.environ,'TERM':'xterm'})
-    os.close(slave)
-    result=b''
-    try:
-        deadline=time.monotonic()+3
-        while time.monotonic()<deadline and len(result)<65536:
-            if select.select([master],[],[],.2)[0]:
-                result+=os.read(master,8192)
-    finally:
-        process.terminate(); process.wait(timeout=5); os.close(master)
-    text=re.sub(r'\x1b\[[0-9;?]*[A-Za-z]','',result.decode(errors='replace'))
-    return {int(rate) for rate in re.findall(rf'R\s+{node}\s+\d+\s+(\d+)',text)}
+    # Batch output preserves row boundaries across PipeWire terminal UI versions.
+    text=subprocess.check_output(['pw-top','--batch-mode','--iterations','3'],
+                                 text=True,timeout=8)
+    rates={int(rate) for rate in re.findall(rf'^\s*R\s+{node}\s+\d+\s+(\d+)\b',text,re.M)}
+    if not rates:
+        raise AssertionError(f'No running driver graph rate for node {node}')
+    return rates
 
 
 def restore_after_test(child, hardware, saved):

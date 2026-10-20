@@ -64,6 +64,8 @@ python3 tests/source_rate_smoke.py --report .local-build/source-rate.json
 
 这个专用宿主测试会暂时停止 agent/Soloist，通过适配器提供合成 Pulse PCM，按 44.1→48→96→44.1kHz 切换，核对客户端格式、驱动图、USB、增益/静音不变、全局 force-rate 为零、修复记录不变及采样率请求清理。结束后恢复暂停服务，不运行长时间测试。它验证传输，不验证 Spotify 解码器或目录原文件格式。真实 Soloist 还须核对 PCM/USB 相等、双向 DLNA 交接、重启和听音。
 
+现有脚本先暂停真实 Soloist 会话，因此运行前需完成配对并启动服务。音频图观测使用 `pw-top --batch-mode --iterations 3`，超时为八秒。交互式终端画面的文本抓取可能失败，即使驱动正在运行。必须找到选定节点的活动行，并保留所有观测到的采样率；空结果、挂起节点或监测进程失败均不能算图采样率通过。单元测试覆盖行选择和采样率变化，不代替硬件协商验收。
+
 ## 长时间测试
 
 ```sh

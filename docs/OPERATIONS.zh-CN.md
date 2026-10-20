@@ -4,6 +4,8 @@
 
 ## 宿主准备
 
+架构选择、多网口启动策略与全新宿主验收见 [Linux 宿主安装](installation/linux-host.zh-CN.md)。
+
 在systemd Linux上使用专用服务账号。以root安装依赖、授予音频设备权限并启用linger：
 
 ```sh
